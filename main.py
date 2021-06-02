@@ -1,8 +1,9 @@
 import tkinter as tk
-from tkinter import BooleanVar, Button, Checkbutton, Entry, Frame, Label, LabelFrame, ttk, filedialog, messagebox
+from tkinter import BooleanVar, Button, Checkbutton, Entry, Frame, Label, LabelFrame, Radiobutton, StringVar, ttk, filedialog, messagebox
 from tkinter.constants import END
 from abc import ABC, ABCMeta, abstractmethod
 import json
+import logging
 
 from util import run
 
@@ -34,10 +35,23 @@ config = {
 }
 
 class ConfigOption(metaclass=ABCMeta):
-    def __init__(self, name:str, config:dict):
+    def __init__(self, name:str, config:dict, special_valid_params = [], special_required_params=[]):
         self.config = config
         self.name = name
-        self.type = config["type"]
+        self.valid_params = ["type", "value", "label", "desc", "section", "name"] + special_valid_params
+        self.required_params = ["name", "type"] + special_required_params
+        self.params = []
+
+        for p in self.required_params:
+            if p not in config:
+                raise RuntimeError(f"Param {p} is required and not found in params")
+        
+        for key in config:
+            if key not in self.valid_params:
+                raise RuntimeError(f"Param {key} is not a valid param. Valid params are {self.valid_params}.")
+            setattr(self, key, config[key])
+            self.params.append(key)
+        
         self.value = config.get("value", "") 
         if type(self.value) == str:
             self.value = self.value.lower() #Make sure all strings are lower for comparison
@@ -70,11 +84,13 @@ class ConfigOption(metaclass=ABCMeta):
         pass
     
     def get_dict(self):
-        d= {}
-        for attribute in dir(self):
-            if callable(getattr(self, attribute)):
-                if attribute[:3] == "get" and attribute != "get_dict":
-                    d[attribute[4:]] = getattr(self, attribute)()
+        d = {}
+        for attribute in self.params:
+            try:
+                d[attribute] = getattr(self, f"get_{attribute}")()
+            except:
+                logging.warning("No getter implementation useing set property!")
+                d[attribute] = getattr(self, attribute)
         self.config = d
         return d
     
@@ -82,7 +98,7 @@ class ConfigOption(metaclass=ABCMeta):
 
 class ConfigBool(ConfigOption):
     def __init__(self, frame, name: str, config: dict):
-        super().__init__(name, config)
+        super().__init__(name, config, special_required_params=["value"])
         self.frame = frame
         self.bool = BooleanVar(value=self.value)
         self.check_button = Checkbutton(self.frame, text=self.label, variable=self.bool)
@@ -107,6 +123,49 @@ class ConfigBool(ConfigOption):
     
     def get_section(self):
         return self.section
+
+class ConfigRadio(ConfigOption):
+    def __init__(self, frame, name: str, config: dict):
+        super().__init__(name, config, special_valid_params=["options"])
+        self.frame = frame
+        
+        self.label = ttk.Label(self.frame, text=self.label)
+        self.label.pack(side="left")
+
+        self.inner_frame = LabelFrame(self.frame)
+        self.inner_frame.pack(side="left")
+        self.option = StringVar()
+        self.options = []
+        for o in config["options"]:
+            self.options.append(Radiobutton(self.inner_frame, text=o, variable=self.option, value=o))
+            self.options[-1].pack(anchor="w")
+        self.desc = Label(self.frame, text = self.desc) #TODO: Make a pop up
+        self.desc.pack(side="left")
+    
+    def get_value(self):
+        return self.option.get()
+    
+    def get_type(self):
+        return self.type
+    
+    def get_label(self):
+        return self.label
+    
+    def get_name(self):
+        return self.name
+    
+    def get_desc(self):
+        return self.desc
+    
+    def get_section(self):
+        return self.section
+    
+    def get_options(self):
+        r = []
+        for x in self.options:
+            r.append(x.cget("text"))
+        return r
+        
         
 class ConfigDir(ConfigOption):
     def __init__(self, frame, name: str, config: dict):
@@ -157,8 +216,11 @@ class Option:
             self.config = ConfigDir(self.frame, config["name"], config)
         elif config["type"] == "bool":
             self.config = ConfigBool(self.frame, config["name"], config)
+        elif config["type"] == "radio":
+            self.config = ConfigRadio(self.frame, config["name"], config)
         else:
-            raise RuntimeError(f"Unsupported configuration type {self.config.type}")
+            type = config["type"]
+            raise RuntimeError(f"Unsupported configuration type {type}")
 
     
     def get_frame(self):
@@ -180,25 +242,10 @@ class App:
         self.components = {}
         self.frames = {}
         
-        # self.install_dirs = Frame(self.notebook)
-        # self.optional_features = Frame(self.notebook)
-        
-        # self.install_dirs.pack(fill = "both", expand=1)
-        # self.optional_features.pack(fill = "both", expand=1)
-
         self.read_config()
-        # self.components["dir"] = Option(parent=self.install_dirs, config=config["bindir"])
-        # self.components["dir"].get_frame().pack(fill="x")
-        
-        # config["enable-java"]["name"] = 'enable-java'
-        # self.components["java"] = Option(parent=self.optional_features, config=config["enable-java"])
-        # self.components["java"].get_frame().pack(fill = "x")
 
         self.done_button = Button(self.root, text="Done", command=self.done)
         self.done_button.pack(side="right")
-
-        # self.notebook.add(self.install_dirs, text="install directories")
-        # self.notebook.add(self.optional_features, text="optional features")
 
         self.root.mainloop()
     
