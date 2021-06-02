@@ -16,7 +16,9 @@ class Configure:
         sep = " "
         command = self.program
         for config in self.configs:
-            command += f"{sep}--{config.get_name()}={config.get_value()}"
+            value = config.get_value()
+            if value == "":
+                command += f"{sep}--{config.get_name()}={value}"
         return command
 
 config = { 
@@ -196,31 +198,51 @@ class App:
         self.root.mainloop()
     
     def write_config(self):
-        d = self.get_config_dicts()
+        d = self.get_config_dict()
         with open(self.filename, "w") as f:
             f.write(json.dumps(d, indent=4))
 
     def read_config(self):
         with open(self.filename, "r") as f:
-            options = json.load(f)
-        for c in options:
-            c = Option(config=c).get_configOption()
-            make = True
-            if self.components.get(c.get_name()):
-                if self.components[c.get_name()].get_configOption().get_dict() != c.get_dict():
-                    self.components[c.get_name()].get_frame().destroy()
+            options = json.load(f) #TODO: Implement nested dictinary in config.json parse here
+        if type(options) == list: #TODO: Either update or depcricate list option
+            for c in options:
+                c = Option(config=c).get_configOption() #Create an object here so we can compare with existing objects
+                make = True
+                if self.components.get(c.get_name()):
+                    if self.components[c.get_name()].get_configOption().get_dict() != c.get_dict():
+                        self.components[c.get_name()].get_frame().destroy()
+                    else:
+                        make = False
                 else:
-                    make = False
-            else:
-                if not self.frames.get(c.get_section()):
-                    self.frames[c.get_section()] = Frame(self.notebook)
-                    self.frames[c.get_section()] = Frame(self.notebook)
-                    self.frames[c.get_section()].pack(fill = "both", expand=1)
-                    self.notebook.add(self.frames[c.get_section()], text=c.get_section())
-            if make:
-                self.components[c.get_name()] = Option(parent=self.frames[c.get_section()], config=c.get_dict())
-                self.components[c.get_name()].get_frame().pack(fill="x")
-
+                    if not self.frames.get(c.get_section()):
+                        self.frames[c.get_section()] = Frame(self.notebook)
+                        self.frames[c.get_section()] = Frame(self.notebook)
+                        self.frames[c.get_section()].pack(fill = "both", expand=1)
+                        self.notebook.add(self.frames[c.get_section()], text=c.get_section())
+                if make:
+                    self.components[c.get_name()] = Option(parent=self.frames[c.get_section()], config=c.get_dict())
+                    self.components[c.get_name()].get_frame().pack(fill="x")
+        elif type(options) == dict:
+            for section in options:
+                if not self.frames.get(section):
+                    self.frames[section] = Frame(self.notebook)
+                    self.frames[section] = Frame(self.notebook)
+                    self.frames[section].pack(fill = "both", expand=1)
+                    self.notebook.add(self.frames[section], text=section)
+                for c in options[section]:
+                    c = Option(config=c).get_configOption() #Create an object here so we can compare with existing objects
+                    make = True
+                    if self.components.get(c.get_name()):
+                        if self.components[c.get_name()].get_configOption().get_dict() != c.get_dict():
+                            self.components[c.get_name()].get_frame().destroy()
+                        else:
+                            make = False
+                    if make:
+                        self.components[c.get_name()] = Option(parent=self.frames[section], config=c.get_dict())
+                        self.components[c.get_name()].get_configOption().section = section
+                        self.components[c.get_name()].get_frame().pack(fill="x")
+    
     def get_config_objects(self):
         config = []
         for key in self.components:
@@ -228,12 +250,15 @@ class App:
             config.append(option)
         return config
 
-    def get_config_dicts(self):
-        config_dicts = []
-        for key in self.components:
-            option = self.components[key].get_configOption()
-            config_dicts.append(option.get_dict())
-        return config_dicts
+    def get_config_dict(self):
+        config_dict = {}
+        for section in self.frames: #TODO: Fix this n**2 solution by makeing self.frames a dictinary containing arrays
+            config_dict[section] = []
+            for key in self.components:
+                if self.components[key].get_configOption().get_section() == section:
+                    option = self.components[key].get_configOption()
+                    config_dict[section].append(option.get_dict())
+        return config_dict
 
     def done(self):
         self.write_config()

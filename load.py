@@ -16,8 +16,9 @@ with open("help.txt", "r") as f:
                 sections[section].append((line[argIndex:helpIndex], line[helpIndex:].strip()))
             except:
                 print("Invalid line:", line)
-myJson = []
+myJson = {}
 for section in sections:
+    myJson[section] = []
     for t in sections[section]:
         arg = t[0]
         help = t[1]
@@ -33,15 +34,15 @@ for section in sections:
             type = "bool"
         # print(arg, "=", type, ":", help)
         if type in ("dir", "bool"):
-            myJson.append({
+            myJson[section].append( {
                 "name": arg[2:],
-                "section": section,
+                # "section": section,
                 "type": type,
             })
             if type == "bool":
-                myJson[-1]["value"] = False
+                myJson[section][-1]["value"] = False
         else:
-            print("type:", type)
+            print("unuported type:", type)
 
 with open("config.json", "w") as f:
     f.write(json.dumps(myJson, indent=4))
