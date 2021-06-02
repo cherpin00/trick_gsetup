@@ -59,30 +59,6 @@ class ConfigOption(metaclass=ABCMeta):
         self.desc = config.get("desc", "No help given.")
         self.section = config.get("section", "general")
     
-    @abstractmethod
-    def get_value(self):
-        pass
-
-    @abstractmethod
-    def get_type(self):
-        pass
-    
-    @abstractmethod
-    def get_label(self):
-        pass
-    
-    @abstractmethod
-    def get_name(self):
-        pass
-
-    @abstractmethod
-    def get_desc(self):
-        pass
-
-    @abstractmethod
-    def get_section(self):
-        pass
-    
     def get_dict(self):
         d = {}
         for attribute in self.params:
@@ -93,6 +69,12 @@ class ConfigOption(metaclass=ABCMeta):
                 d[attribute] = getattr(self, attribute)
         self.config = d
         return d
+    
+    def get_name(self):
+        return self.name
+    
+    def get_section(self):
+        return self.section
     
 
 
@@ -108,22 +90,10 @@ class ConfigBool(ConfigOption):
     
     def get_value(self):
         return "yes" if self.bool.get() else "no"
-    
-    def get_type(self):
-        return self.type
-    
-    def get_label(self):
-        return self.label
-    
-    def get_name(self):
-        return self.name
-    
+        
     def get_desc(self):
         return self.desc.cget("text")
     
-    def get_section(self):
-        return self.section
-
 class ConfigRadio(ConfigOption):
     def __init__(self, frame, name: str, config: dict):
         super().__init__(name, config, special_valid_params=["options"])
@@ -144,21 +114,6 @@ class ConfigRadio(ConfigOption):
     
     def get_value(self):
         return self.option.get()
-    
-    def get_type(self):
-        return self.type
-    
-    def get_label(self):
-        return self.label
-    
-    def get_name(self):
-        return self.name
-    
-    def get_desc(self):
-        return self.desc
-    
-    def get_section(self):
-        return self.section
     
     def get_options(self):
         r = []
@@ -184,21 +139,12 @@ class ConfigDir(ConfigOption):
     def get_value(self): #TODO: Validate directory
         return self.directory_entry.get()
     
-    def get_type(self):
-        return self.type
-    
     def get_label(self):
         return self.label.cget("text")
-    
-    def get_name(self):
-        return self.name
     
     def get_desc(self):
         return self.desc.cget("text")
     
-    def get_section(self):
-        return self.section
-        
     def browse_dir(self):
         dir = filedialog.askdirectory()
         self.directory_entry.delete(0, END)
