@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import BooleanVar, Button, Checkbutton, Entry, Frame, Label, LabelFrame, ttk, filedialog
+from tkinter import BooleanVar, Button, Checkbutton, Entry, Frame, Label, LabelFrame, ttk, filedialog, messagebox
 from tkinter.constants import END
 from abc import ABC, ABCMeta, abstractmethod
 import json
@@ -18,7 +18,7 @@ class Configure:
             command += f"{sep}--{config.get_name()}={config.get_value()}"
         return command
 
-config = {  #TODO: This should get put into an object to error check
+config = { 
     "bindir" : {
         "type" : "dir",
         "value" : "/usr/bin",
@@ -91,7 +91,7 @@ class ConfigBool(ConfigOption):
         self.desc.pack(side="left")
     
     def get_value(self):
-        return self.bool.get()
+        return "yes" if self.bool.get() else "no"
     
     def get_type(self):
         return self.type
@@ -153,7 +153,7 @@ class Option:
             self.parent = parent
 
         self.frame = LabelFrame(self.parent)
-        if config["type"] == "dir": #TODO: Think about these each being a diffrent class
+        if config["type"] == "dir": 
             self.config = ConfigDir(self.frame, config["name"], config)
         elif config["type"] == "bool":
             self.config = ConfigBool(self.frame, config["name"], config)
@@ -210,7 +210,7 @@ class App:
     def read_config(self):
         with open(self.filename, "r") as f:
             options = json.load(f)
-        for c in options: #TODO: Load into an option class first
+        for c in options:
             c = Option(config=c).get_configOption()
             make = True
             if self.components.get(c.get_name()):
@@ -249,7 +249,10 @@ class App:
         cmd = Configure(configs).get_command()
         p = run(cmd)
         print("stdout:", p.stdout)
-        print("stderr:", p.stderr)
+        if len(p.stderr) > 0:
+            print("stderr:", p.stderr)
+            messagebox.showerror("Configure error", p.stderr.decode())
+
         
 
         
