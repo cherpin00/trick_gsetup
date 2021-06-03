@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import BooleanVar, Button, Checkbutton, Entry, Frame, Label, LabelFrame, Radiobutton, StringVar, ttk, filedialog, messagebox
+from tkinter import BooleanVar, Button, Checkbutton, Entry, Frame, Label, LabelFrame, Radiobutton, StringVar, ttk, filedialog, messagebox, Canvas, Scrollbar
 from tkinter.constants import END
 from abc import ABC, ABCMeta, abstractmethod
 import json
@@ -192,6 +192,13 @@ class App:
     def __init__(self):
         self.filename = "config.json"
         self.root = tk.Tk()
+        self.root.geometry("500x500")
+
+        self.done_button = Button(self.root, text="Done", command=self.done)
+        self.done_button.pack(side="bottom", anchor="e")
+
+        self.root = self.get_scrollable_frame(self.root, "y")
+
         self.root.rowconfigure(0, weight=1)
         self.root.columnconfigure(0, weight=1)
 
@@ -202,12 +209,11 @@ class App:
         self.frames = {}
         
         self.read_config()
-
-        self.done_button = Button(self.root, text="Done", command=self.done)
-        self.done_button.pack(side="right")
-
+        
         self.root.mainloop()
     
+    
+
     def write_config(self):
         d = self.get_config_dict()
         with open(self.filename, "w") as f:
@@ -282,8 +288,53 @@ class App:
             print("stderr:", p.stderr)
             messagebox.showerror("Configure error", p.stderr.decode())
 
-        
+    def get_scroll_bar(self, main_frame, my_canvas, axis):
+    #Add a scrollbar to canvas
+        if axis == "x" or axis == "both":
+            raise RuntimeError("x scrollbar not implemented yet.")
+            my_scrollbar = Scrollbar(main_frame, orient="horizontal", command=my_canvas.xview)
+            my_scrollbar.pack(side="bottom", fill="x")
+            # my_scrollbar.grid(row=100, column=0, sticky="ns", fill="x")
+            my_canvas.configure(xscrollcommand=my_scrollbar.set)
+            my_canvas.bind("<Configure>", lambda e: my_canvas.configure(scrollregion=my_canvas.bbox("all")))
+            def _on_mouse_wheel(event):
+                my_canvas.xview_scroll(-1 * int((event.delta / 120)), "units")
 
+            my_canvas.bind_all("<MouseWheel>", _on_mouse_wheel)
+        if axis == "y" or axis == "both":
+            #Add a scrollbar to canvas
+            my_scrollbar = Scrollbar(main_frame, orient="vertical", command=my_canvas.yview)
+            my_scrollbar.pack(side="right", fill="y")
+            # my_scrollbar.grid(row=0, column=100, fill = "y")
+            my_canvas.configure(yscrollcommand=my_scrollbar.set)
+            my_canvas.bind("<Configure>", lambda e: my_canvas.configure(scrollregion=my_canvas.bbox("all")))
+            def _on_mouse_wheel(event):
+                my_canvas.yview_scroll(-1 * int((event.delta / 120)), "units")
+
+            my_canvas.bind_all("<MouseWheel>", _on_mouse_wheel)
+        #TODO: put error here if of the options above
+
+        main_frame.rowconfigure(0, weight=1)
+        main_frame.columnconfigure(0, weight=1)
+            
+    def get_scrollable_frame(self, parent, axis):
+    #Create a Main Frame
+        main_frame = Frame(parent)
+        main_frame.pack(fill="both", expand=True)
+
+        #Create  Canvas
+        my_canvas = Canvas(main_frame)
+        my_canvas.pack(fill="both", expand=True, side="left")
+        # my_canvas.grid(row=0, column=0, sticky="nsew")
+
+        self.get_scroll_bar(main_frame, my_canvas, axis)
+
+        #Create another frame inside the canvas
+        second_frame = Frame(my_canvas)
+
+        #Add new frame to window in canvas
+        my_canvas.create_window((0,0), window=second_frame, anchor="nw")
+        return second_frame
         
     
 
