@@ -34,10 +34,13 @@ for section in sections:
             type = "flag"
         # print(arg, "=", type, ":", help)
         if type in ("dir", "bool", "flag"):
+            if arg[-1] == "[":
+                arg = arg[:-1]
             myJson[section].append( {
                 "name": arg[2:],
                 # "section": section,
                 "type": type,
+                "desc":help
             }) 
             if type == "bool" or type == "flag":
                 myJson[section][-1]["value"] = False

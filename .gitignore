@@ -3,3 +3,7 @@ __pycache__/*
 config.log
 config.status
 share/trick/makefiles/config_user.mk
+*.json
+build/*
+main
+main.spec

@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import BooleanVar, Button, Checkbutton, Entry, Frame, Label, LabelFrame, Radiobutton, StringVar, ttk, filedialog, messagebox, Canvas, Scrollbar
+from tkinter import BooleanVar, Button, Checkbutton, Entry, Frame, Label, LabelFrame, Menu, Radiobutton, StringVar, ttk, filedialog, messagebox, Canvas, Scrollbar
 from tkinter.constants import END
 from abc import ABC, ABCMeta, abstractmethod
 import json
@@ -17,10 +17,11 @@ class Configure:
         sep = " "
         command = self.program
         for config in self.configs:
-            value = config.get_value()
-            type = config.get_type()
+            my_dict = config.get_dict() #This will get all values using getters if available
+            value = config.value
+            type = config.type
             if value != "" and value != "no":
-                command += f"{sep}--{config.get_name()}"
+                command += f"{sep}--{config.name}"
                 if type != "flag":
                     command += f"={value}"
         return command
@@ -54,8 +55,12 @@ class ConfigOption(metaclass=ABCMeta):
         
         for key in config:
             if key not in self.valid_params:
-                raise RuntimeError(f"Param {key} is not a valid param. Valid params are {self.valid_params}.")
+                raise RuntimeError(f"Param '{key}' is not a valid param. Valid params are {self.valid_params}.")
             setattr(self, key, config[key])
+            self.params.append(key)
+        
+        for key in list(set(self.params).symmetric_difference(set(self.valid_params))):
+            setattr(self, key, "default")
             self.params.append(key)
         
         self.value = config.get("value", "") 
@@ -71,7 +76,7 @@ class ConfigOption(metaclass=ABCMeta):
             try:
                 d[attribute] = getattr(self, f"get_{attribute}")()
             except:
-                logging.warning("No getter implementation useing set property!")
+                logging.warning(f"No getter implementation for '{attribute}' using set property!")
                 d[attribute] = getattr(self, attribute)
         self.config = d
         return d
@@ -118,13 +123,19 @@ class ConfigRadio(ConfigOption):
         self.option = StringVar()
         self.options = []
         for o in config["options"]:
-            self.options.append(Radiobutton(self.inner_frame, text=o, variable=self.option, value=o))
+            self.options.append(Radiobutton(self.inner_frame, text=o, variable=self.option, value=o, state="active" if self.value == o else "normal"))
             self.options[-1].pack(anchor="w")
         self.desc = Label(self.frame, text = self.desc) #TODO: Make a pop up
         self.desc.pack(side="left")
-    
+
+    def get_label(self):
+        return self.label.cget("text")
+
     def get_value(self):
         return self.option.get()
+    
+    def get_desc(self):
+        return self.desc.cget("text")
     
     def get_options(self):
         r = []
@@ -135,15 +146,15 @@ class ConfigRadio(ConfigOption):
         
 class ConfigDir(ConfigOption):
     def __init__(self, frame, name: str, config: dict):
-        super().__init__(name, config)
+        super().__init__(name, config, special_valid_params=["width"])
         self.frame = frame
         self.label = ttk.Label(self.frame, text=self.label)
         self.label.pack(side="left")
-        self.directory_entry = ttk.Entry(self.frame)
+        self.directory_entry = ttk.Entry(self.frame, width=10 if self.width == "default" else self.width)
         self.directory_entry.insert(0, self.value)
         self.directory_entry.pack(side="left")
         self.browse_button = ttk.Button(self.frame, text="browse", command=self.browse_dir)
-        self.browse_button.pack(side="left")
+        self.browse_button.pack(side="right")
         self.desc = ttk.Label(self.frame, text = self.desc) #TODO: Make a pop up
         self.desc.pack(side="left")
     
@@ -168,6 +179,9 @@ class Option:
         else:
             self.parent = parent
 
+        for key in ["name", "type"]:
+            if key not in config:
+                raise RuntimeError(f"'{key}' is a required parameter")
         self.frame = LabelFrame(self.parent)
         if config["type"] == "dir": 
             self.config = ConfigDir(self.frame, config["name"], config)
@@ -192,12 +206,23 @@ class App:
     def __init__(self):
         self.filename = "config.json"
         self.root = tk.Tk()
-        self.root.geometry("500x500")
 
+        self.menu = Menu(self.root)
+        self.root.config(menu=self.menu)
+
+        self.file_menu = Menu(self.menu, tearoff=False)
+        self.menu.add_cascade(label="File", menu=self.file_menu)
+        self.file_menu.add_command(label="New", command=self.new_config)
+        self.file_menu.add_command(label="Open", command=self.open_config)
+        self.file_menu.add_command(label="Save")
+        self.file_menu.add_separator()
+        self.file_menu.add_command(label="Exit")
+        
         self.done_button = Button(self.root, text="Done", command=self.done)
         self.done_button.pack(side="bottom", anchor="e")
 
-        self.root = self.get_scrollable_frame(self.root, "y")
+        self.root.geometry("800x800")
+        self.root = self.get_scrollable_frame(self.root, "both")
 
         self.root.rowconfigure(0, weight=1)
         self.root.columnconfigure(0, weight=1)
@@ -211,8 +236,16 @@ class App:
         self.read_config()
         
         self.root.mainloop()
-    
-    
+
+    def new_config(self):
+        pass
+
+    def open_config(self):
+        self.filename = filedialog.askopenfile(title="Open Configuration file", filetypes=(("JSON files", "*.json"), ))
+        self.filename = f"{self.filename.name}"
+        self.root.destroy()
+        App()
+
 
     def write_config(self):
         d = self.get_config_dict()
@@ -221,8 +254,8 @@ class App:
 
     def read_config(self):
         with open(self.filename, "r") as f:
-            options = json.load(f) #TODO: Implement nested dictinary in config.json parse here
-        if type(options) == list: #TODO: Either update or depcricate list option
+            options = json.load(f) #TODO: Implement nested dictionary in config.json parse here
+        if type(options) == list: #TODO: Either update or deprecate list option
             for c in options:
                 c = Option(config=c).get_configOption() #Create an object here so we can compare with existing objects
                 make = True
@@ -242,23 +275,34 @@ class App:
                     self.components[c.get_name()].get_frame().pack(fill="x")
         elif type(options) == dict:
             for section in options:
+                isDict = False
                 if not self.frames.get(section):
                     self.frames[section] = Frame(self.notebook)
                     self.frames[section] = Frame(self.notebook)
                     self.frames[section].pack(fill = "both", expand=1)
                     self.notebook.add(self.frames[section], text=section)
+                if type(section) == dict:
+                    isDict = True
                 for c in options[section]:
-                    c = Option(config=c).get_configOption() #Create an object here so we can compare with existing objects
-                    make = True
-                    if self.components.get(c.get_name()):
-                        if self.components[c.get_name()].get_configOption().get_dict() != c.get_dict():
-                            self.components[c.get_name()].get_frame().destroy()
-                        else:
-                            make = False
-                    if make:
-                        self.components[c.get_name()] = Option(parent=self.frames[section], config=c.get_dict())
-                        self.components[c.get_name()].get_configOption().section = section
-                        self.components[c.get_name()].get_frame().pack(fill="x")
+                    if isDict:
+                        raise RuntimeError("Double grouping are not implemented yet.")
+                        for c2 in c: #TODO: Implement this feature.  Double groupings
+                            self.create_option(c, section)
+                    else:
+                        self.create_option(c, section)
+
+    def create_option(self, c, section):
+        c = Option(config=c).get_configOption() #Create an object here so we can compare with existing objects
+        make = True
+        if self.components.get(c.get_name()):
+            if self.components[c.get_name()].get_configOption().get_dict() != c.get_dict():
+                self.components[c.get_name()].get_frame().destroy()
+            else:
+                make = False
+        if make:
+            self.components[c.get_name()] = Option(parent=self.frames[section], config=c.get_dict())
+            self.components[c.get_name()].get_configOption().section = section
+            self.components[c.get_name()].get_frame().pack(fill="x")
     
     def get_config_objects(self):
         config = []
@@ -276,7 +320,7 @@ class App:
                     option = self.components[key].get_configOption()
                     config_dict[section].append(option.get_dict())
         return config_dict
-
+    
     def done(self):
         self.write_config()
         self.read_config()
@@ -291,10 +335,9 @@ class App:
     def get_scroll_bar(self, main_frame, my_canvas, axis):
     #Add a scrollbar to canvas
         if axis == "x" or axis == "both":
-            raise RuntimeError("x scrollbar not implemented yet.")
             my_scrollbar = Scrollbar(main_frame, orient="horizontal", command=my_canvas.xview)
-            my_scrollbar.pack(side="bottom", fill="x")
-            # my_scrollbar.grid(row=100, column=0, sticky="ns", fill="x")
+            # my_scrollbar.pack(side="bottom", fill="x")
+            my_scrollbar.grid(row=100, column=0, sticky="ew")
             my_canvas.configure(xscrollcommand=my_scrollbar.set)
             my_canvas.bind("<Configure>", lambda e: my_canvas.configure(scrollregion=my_canvas.bbox("all")))
             def _on_mouse_wheel(event):
@@ -304,8 +347,8 @@ class App:
         if axis == "y" or axis == "both":
             #Add a scrollbar to canvas
             my_scrollbar = Scrollbar(main_frame, orient="vertical", command=my_canvas.yview)
-            my_scrollbar.pack(side="right", fill="y")
-            # my_scrollbar.grid(row=0, column=100, fill = "y")
+            # my_scrollbar.pack(side="right", fill="y")
+            my_scrollbar.grid(row=0, column=100, sticky="ns")
             my_canvas.configure(yscrollcommand=my_scrollbar.set)
             my_canvas.bind("<Configure>", lambda e: my_canvas.configure(scrollregion=my_canvas.bbox("all")))
             def _on_mouse_wheel(event):
@@ -324,8 +367,8 @@ class App:
 
         #Create  Canvas
         my_canvas = Canvas(main_frame)
-        my_canvas.pack(fill="both", expand=True, side="left")
-        # my_canvas.grid(row=0, column=0, sticky="nsew")
+        # my_canvas.pack(fill="both", expand=True, side="top", anchor="nw")
+        my_canvas.grid(row=0, column=0, sticky="nsew")
 
         self.get_scroll_bar(main_frame, my_canvas, axis)
 
