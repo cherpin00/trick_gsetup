@@ -4,6 +4,7 @@ from tkinter.constants import END
 from abc import ABC, ABCMeta, abstractmethod
 import json
 import logging
+from pprint import pprint
 
 from util import run
 
@@ -17,8 +18,11 @@ class Configure:
         command = self.program
         for config in self.configs:
             value = config.get_value()
-            if value == "":
-                command += f"{sep}--{config.get_name()}={value}"
+            type = config.get_type()
+            if value != "" and value != "no":
+                command += f"{sep}--{config.get_name()}"
+                if type != "flag":
+                    command += f"={value}"
         return command
 
 config = { 
@@ -72,11 +76,15 @@ class ConfigOption(metaclass=ABCMeta):
         self.config = d
         return d
     
+    #NOTE: Only the attributes that are not shown on the gui have getters here because they do not require special handling because they do not have tkinter widgets.
     def get_name(self):
         return self.name
     
     def get_section(self):
         return self.section
+    
+    def get_type(self):
+        return self.type
     
 
 
@@ -96,6 +104,7 @@ class ConfigBool(ConfigOption):
     def get_desc(self):
         return self.desc.cget("text")
     
+
 class ConfigRadio(ConfigOption):
     def __init__(self, frame, name: str, config: dict):
         super().__init__(name, config, special_valid_params=["options"])
@@ -166,6 +175,8 @@ class Option:
             self.config = ConfigBool(self.frame, config["name"], config)
         elif config["type"] == "radio":
             self.config = ConfigRadio(self.frame, config["name"], config)
+        elif config["type"] == "flag":
+            self.config = ConfigBool(self.frame, config["name"], config)
         else:
             type = config["type"]
             raise RuntimeError(f"Unsupported configuration type {type}")
@@ -266,7 +277,7 @@ class App:
         configs = self.get_config_objects()
         cmd = Configure(configs).get_command()
         p = run(cmd)
-        print("stdout:", p.stdout)
+        pprint(p.stdout.decode())
         if len(p.stderr) > 0:
             print("stderr:", p.stderr)
             messagebox.showerror("Configure error", p.stderr.decode())
