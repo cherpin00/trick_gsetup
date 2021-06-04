@@ -22,27 +22,3 @@ def test_configure():
     c = Configure(configs)
     assert c.get_command(
     ) == "/home/cherpin/git/trick/configure --bindir=/usr/bin --java-enable=false"
-
-{
-    "section" : {
-        "name" : {
-
-        },
-        "name" : {
-
-        },
-        "name" : {
-
-        }
-    }
-}
-def test_option():
-    name = "bindir"
-    option = {
-        "type": "dir"
-    }
-    Option(name, option)
-
-
-if __name__ == "__main__":
-    test_spaces()

@@ -58,7 +58,7 @@ class Component:
             pass
 
 class Option(Component):
-    def __init__(self, parent, section, name, special_valid_params = [], special_required_params=[]) -> None:
+    def __init__(self, parent, section, name, data, special_valid_params = [], special_required_params=[]) -> None:
         self.source_attribute = "value"
         required_params = ["type"]
         valid_params = ["type", "value", "label", "desc"]
@@ -78,8 +78,8 @@ class Option(Component):
 
 
 class OptionDir(Option):
-    def __init__(self, parent, section, name):
-        super().__init__(parent, section, name, special_valid_params=["width"])
+    def __init__(self, parent, section, name, data):
+        super().__init__(parent, section, name, data, special_valid_params=["width"])
         # Setting defaults
         self.width = 10 if self.width == "default" else self.width
 
@@ -105,8 +105,8 @@ class OptionDir(Option):
         self.directory_entry.insert(0, dir)
 
 class OptionBool(Option):
-    def __init__(self, parent, section, name):
-        super().__init__(parent ,section, name)
+    def __init__(self, parent, section, name, data):
+        super().__init__(parent ,section, name, data)
         #Setting defaults
         self.value = "no" if self.value == "default" else self.value
 
@@ -122,7 +122,7 @@ class OptionBool(Option):
         self.value = "yes" if self.bool.get() else "no"
 
 class Section(Component):
-    def __init__(self, parent, section): #TODO: Figure out if I can pass in data instead of making it global
+    def __init__(self, parent, section, data): #TODO: Figure out if I can pass in data instead of making it global
         valid_params = ["options", "size"] #TODO: Use size or take it out of valid params
         required_params = ["options"]
         super().__init__(parent, section, getattr(getattr(data, "sections"), section), special_valid_params=valid_params, special_required_params=required_params)
@@ -138,9 +138,9 @@ class Section(Component):
             obj = getattr(getattr(self.source, "options"), option)
             my_type = obj.type
             if my_type == "dir":
-                self.components[option] = OptionDir(self.get_frame(), section, option)
+                self.components[option] = OptionDir(self.get_frame(), section, option, data)
             elif my_type == "bool":
-                self.components[option] = OptionBool(self.get_frame(), section, option)
+                self.components[option] = OptionBool(self.get_frame(), section, option, data)
             else:
                 raise RuntimeError(f"Option {my_type} is not implemented yet.")
             
@@ -150,7 +150,7 @@ class Section(Component):
         return self.frame
     
 class App(Component):
-    def __init__(self):
+    def __init__(self, data):
         self.root = tk.Tk()
         super().__init__(self.root, "app", data, special_required_params=["sections"], special_valid_params=["sections"])
         notebook = ttk.Notebook(self.root)
@@ -160,7 +160,7 @@ class App(Component):
         sections = getattr(self.source, "sections")._dict_()
         for section in sections:
             obj = getattr(getattr(self.source, "sections"), section)
-            self.sections[section] = Section(notebook, section)
+            self.sections[section] = Section(notebook, section, data)
             # self.sections[section].get_frame().pack(fill="both", expand=1)
     
     def get_frame(self):
@@ -227,7 +227,7 @@ if __name__ == "__main__":
         }
     data = Data(**my_json)
     pprint(data._dict_())
-    App()
+    App().get_frame().mainloop()
     pprint(data._dict_())
     # Control(my_json).start()
 
