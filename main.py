@@ -18,8 +18,8 @@ class Configure:
         command = self.program
         for config in self.configs:
             my_dict = config.get_dict() #This will get all values using getters if available
-            value = config.value
-            type = config.type
+            value = my_dict["value"]
+            type = my_dict["type"]
             if value != "" and value != "no":
                 command += f"{sep}--{config.name}"
                 if type != "flag":
@@ -160,6 +160,7 @@ class ConfigDir(ConfigOption):
     
     def get_value(self): #TODO: Validate directory
         return self.directory_entry.get()
+        # return self.value
     
     def get_label(self):
         return self.label.cget("text")
@@ -185,12 +186,12 @@ class Option:
         self.frame = LabelFrame(self.parent)
         if config["type"] == "dir": 
             self.config = ConfigDir(self.frame, config["name"], config)
-        elif config["type"] == "bool":
+        elif config["type"] == "bool" or config["type"] == "flag":
             self.config = ConfigBool(self.frame, config["name"], config)
         elif config["type"] == "radio":
             self.config = ConfigRadio(self.frame, config["name"], config)
-        elif config["type"] == "flag":
-            self.config = ConfigBool(self.frame, config["name"], config)
+        # elif config["type"] == "flag":
+            # self.config = ConfigBool(self.frame, config["name"], config)
         else:
             type = config["type"]
             raise RuntimeError(f"Unsupported configuration type {type}")
@@ -218,8 +219,13 @@ class App:
         self.file_menu.add_separator()
         self.file_menu.add_command(label="Exit")
         
-        self.done_button = Button(self.root, text="Done", command=self.done)
-        self.done_button.pack(side="bottom", anchor="e")
+
+        frame = Frame(self.root)
+        self.quit_button = Button(frame, text="Quit", command=self.quit)
+        self.quit_button.pack(side="right", anchor="e")
+        self.done_button = Button(frame, text="Done", command=self.done)
+        self.done_button.pack(side="right", anchor="e")
+        frame.pack(side="bottom", anchor="e")
 
         self.root.geometry("800x800")
         self.root = self.get_scrollable_frame(self.root, "both")
@@ -240,7 +246,11 @@ class App:
     def new_config(self):
         pass
 
+    def quit(self):
+        self.root.quit()
+
     def open_config(self):
+        return
         self.filename = filedialog.askopenfile(title="Open Configuration file", filetypes=(("JSON files", "*.json"), ))
         self.filename = f"{self.filename.name}"
         self.root.destroy()
@@ -300,7 +310,7 @@ class App:
             else:
                 make = False
         if make:
-            self.components[c.get_name()] = Option(parent=self.frames[section], config=c.get_dict())
+            self.components[c.get_name()] = Option(parent=self.frames[section], config=c.get_dict()) #TODO: Don't allow duplicate names in options
             self.components[c.get_name()].get_configOption().section = section
             self.components[c.get_name()].get_frame().pack(fill="x")
     
