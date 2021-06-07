@@ -69,6 +69,7 @@ def test_bool_option():
     json["sections"]["section1"]["options"]["bool_test_case"]["value"] = "yes"
     assert data._dict_() == json
 
+
 def test_section():
     json = {
         "sections" : {
@@ -162,9 +163,7 @@ def test_app():
                 }, 
             }
         }
-    data = Data(**my_json)
-    data._dict_()
-    a = App(data)
+    a = App(my_json)
     for key, value in a.sections.items():
         for option, obj, in value.components.items():
             if obj.type == "dir":
@@ -209,4 +208,137 @@ def test_app():
             }, 
         }
     }
-    assert data._dict_() == my_json
+    assert a.data._dict_() == my_json
+
+def test_app_with_file():
+    a = App("config_for_test_app_with_file.json")
+    for key, value in a.sections.items():
+        for option, obj, in value.components.items():
+            if obj.type == "dir":
+                set_dir(obj, "hello")
+            elif obj.type == "bool":
+                set_bool(obj, True)
+            else:
+                raise RuntimeError("Unsupported type detected!")
+
+    my_json = {
+        "sections" : {
+            "test_cases" : {
+                "size" : 12,
+                "options" : {
+                    "option_name0" : {
+                        "type" : "dir",
+                        "value" : "hello",
+                    },
+                    "option_name1" : {
+                        "type" : "dir",
+                        "value" : "hello",
+                        "width" : 20
+                    },
+                    "option_name2" : {
+                        "type" : "dir",
+                        "width" : 20,
+                        "value" : "hello"
+                    },
+                    "option_name3" : {
+                        "type" : "bool",
+                        "value" : "yes"
+                    },
+                    "option_name4" : {
+                        "type" : "bool",
+                        "value" : "yes"
+                    },
+                    "option_name5" : {
+                        "type" : "bool",
+                        "value" : "yes"
+                    }
+                }
+            }, 
+        }
+    }
+    assert a.data._dict_() == my_json
+
+def test_is_saved_json():
+    #Test to see if the App can tell when the json is saved
+    my_json = {
+            "sections" : {
+                "test_cases" : {
+                    "size" : 12,
+                    "options" : {
+                        "option_name0" : {
+                            "type" : "dir",
+                            "value" : "/home/cherpin",
+                        },
+                        "option_name1" : {
+                            "type" : "dir",
+                            "value" : "/home/cherpin",
+                            "width" : 20
+                        },
+                        "option_name2" : {
+                            "type" : "dir",
+                            "width" : 20
+                        },
+                        "option_name3" : {
+                            "type" : "bool",
+                        },
+                        "option_name4" : {
+                            "type" : "bool",
+                            "value" : True
+                        },
+                        "option_name5" : {
+                            "type" : "bool",
+                            "value" : "yes"
+                        }
+                    }
+                }, 
+            }
+        }
+    a = App(my_json)
+    assert a.is_saved == False #We expect App to add value if not there
+    for key, value in a.sections.items():
+        for option, obj, in value.components.items():
+            if obj.type == "dir":
+                set_dir(obj, "hello")
+            elif obj.type == "bool":
+                set_bool(obj, True)
+            else:
+                raise RuntimeError("Unsupported type detected!")
+
+    my_json = {
+        "sections" : {
+            "test_cases" : {
+                "size" : 12,
+                "options" : {
+                    "option_name0" : {
+                        "type" : "dir",
+                        "value" : "hello",
+                    },
+                    "option_name1" : {
+                        "type" : "dir",
+                        "value" : "hello",
+                        "width" : 20
+                    },
+                    "option_name2" : {
+                        "type" : "dir",
+                        "width" : 20,
+                        "value" : "hello"
+                    },
+                    "option_name3" : {
+                        "type" : "bool",
+                        "value" : "yes"
+                    },
+                    "option_name4" : {
+                        "type" : "bool",
+                        "value" : "yes"
+                    },
+                    "option_name5" : {
+                        "type" : "bool",
+                        "value" : "yes"
+                    }
+                }
+            }, 
+        }
+    }
+    assert a.is_saved == False
+    a.save("config_test_is_saved_json.json")
+    assert a.is_saved == True
