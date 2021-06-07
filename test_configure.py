@@ -146,3 +146,9 @@ def test_run():
 
     with pytest.raises(FileNotFoundError) as e_info:
         ps = run("configure")
+
+def test_hidden_option():
+    assert True == False #TODO: Implement this
+
+def test_hidden_section():
+    assert True == False #TODO: Implement this

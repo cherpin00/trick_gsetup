@@ -342,3 +342,6 @@ def test_is_saved_json():
     assert a.is_saved == False
     a.save("config_test_is_saved_json.json")
     assert a.is_saved == True
+
+def test_save_app():
+    assert True == False #TODO: implement this

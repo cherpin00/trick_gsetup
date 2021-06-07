@@ -10,7 +10,7 @@ from tkinter import messagebox
 import logging
 from tkinter.scrolledtext import ScrolledText
 import traceback
-from deepdiff import DeepDiff
+import os
 
 
 #TODO: Write test case for this function
@@ -78,7 +78,7 @@ def run(program, *args, **kargs):
 class Stderr(object):
     def __init__(self, parent):
         self.txt = Text(parent)
-        self.txt.pack()
+        self.pack(self.txt, )
     def write(self, s):
         self.txt.insert('insert', s)
     def fileno(self):
@@ -104,7 +104,7 @@ class Data:
         return d
 
 class Component:
-    def __init__(self, parent, name, source, special_valid_params, special_required_params) -> None:
+    def __init__(self, parent, name, source:Data, special_valid_params, special_required_params) -> None:
         self.parent = parent
         self.frame = Frame(parent)
         self.name = name
@@ -127,17 +127,30 @@ class Component:
         for key in list(set(self.params).symmetric_difference(set(self.valid_params))):
             setattr(self, key, "default")
             self.params.append(key)
-        
-        @abstractproperty
-        def source_attribute(self):
-            pass
+    
+    def get_hidden(self):
+        try:
+            return string_to_bool(self.hidden)
+        except:
+            return False
+
+    def pack(self, tk, **kargs):        
+        if not self.get_hidden():
+            tk.pack(kargs)
+    
+    def grid(self, tk, **kargs):
+        if not self.get_hidden():
+            tk.grid(kargs)
 
 class Option(Component):
     def __init__(self, parent, section, name, data, special_valid_params = [], special_required_params=[]) -> None:
         self.source_attribute = "value"
         required_params = ["type"]
-        valid_params = ["type", "value", "label", "desc"]
+        valid_params = ["type", "value", "label", "desc", "hidden", "fill", "side", "expand"]
         super().__init__(parent, name, getattr(getattr(getattr(getattr(data, "sections"), section), "options"), name), special_required_params=special_required_params + required_params, special_valid_params=special_valid_params + valid_params)
+        self.fill = "both" if self.fill == "default" else self.fill
+        self.side = "top" if self.side == "default" else self.side
+        self.expand = False if self.expand == "default" else self.expand
 
     @property
     def value(self):
@@ -152,6 +165,7 @@ class Option(Component):
 
 
 
+
 class OptionDir(Option):
     def __init__(self, parent, section, name, data):
         super().__init__(parent, section, name, data, special_valid_params=["width"])
@@ -162,15 +176,15 @@ class OptionDir(Option):
 
         #Building GUI
         self.label_tk = Label(self.get_frame(), text=self.label)
-        self.label_tk.pack(side="left")
+        self.pack(self.label_tk, side="left")
         self.directory_entry = Entry(self.get_frame(), width=self.width)
         self.directory_entry.bind('<KeyRelease>', self.handler)
         self.directory_entry.insert(0, self.value)
-        self.directory_entry.pack(side="left")
+        self.pack(self.directory_entry, side="left")
         self.browse_button = Button(self.get_frame(), text="browse", command=self.browse_dir)
-        self.browse_button.pack(side="right")
+        self.pack(self.browse_button, side="right")
         self.desc = Label(self.get_frame(), text = self.desc) #TODO: Make a pop up
-        self.desc.pack(side="left")
+        self.pack(self.desc, side="left")
     
     def handler(self, event):
         print(f"Setting value to {self.directory_entry.get()}")
@@ -191,16 +205,16 @@ class OptionBool(Option):
         #Building GUI
         self.bool = BooleanVar(value = self.value)
         self.check_button = Checkbutton(self.get_frame(), text=self.label, command=self.handler, variable=self.bool)
-        self.check_button.pack(side="left")
+        self.pack(self.check_button, side="left")
         self.desc = Label(self.get_frame(), text = self.desc) #TODO: Make a pop up
-        self.desc.pack(side="left")
+        self.pack(self.desc, side="left")
     
     def handler(self):
         print(f"Setting value to {self.bool.get()}.")
         self.value = "yes" if self.bool.get() else "no"
 
 class Section(Component):
-    def __init__(self, parent, section, data): #TODO: Figure out if I can pass in data instead of making it global
+    def __init__(self, parent, section, data:Data): #TODO: Figure out if I can pass in data instead of making it global
         valid_params = ["options", "size"] #TODO: Use size or take it out of valid params
         required_params = ["options"]
         super().__init__(parent, section, getattr(getattr(data, "sections"), section), special_valid_params=valid_params, special_required_params=required_params)
@@ -223,7 +237,7 @@ class Section(Component):
                 raise RuntimeError(f"Option attribute '{my_type}' in {option} is not implemented yet.")
             
             # self.components[option].get_frame().pack(fill="both", expand=1, side="top")
-            self.components[option].get_frame().pack(fill="both", side="top")
+            self.pack(self.components[option].get_frame(), fill = self.components[option].fill, expand = self.components[option].expand)
     
     def get_frame(self):
         return self.frame
@@ -236,34 +250,114 @@ class App(Component):
         elif type(my_json_or_filename == dict):
             self.filename = None
             self.data = Data(**my_json_or_filename)
-            self.original_dict = my_json_or_filename
+            self.my_json = my_json_or_filename
         else:
             raise RuntimeError(f"Invalid parameter my_json_or_file: {my_json_or_filename}.")
 
 
         self.root = tk.Tk()
+        super().__init__(self.root, "app", self.data, special_required_params=["sections"], special_valid_params=["sections", "name"])
+        
+        self.name = "app" if self.name == "default" else self.name
+        
+        self.root.title(self.name)
         self.root.report_callback_exception = self.report_callback_exception
-        super().__init__(self.root, "app", self.data, special_required_params=["sections"], special_valid_params=["sections"])
-        self.notebook = ttk.Notebook(self.root)
-        self.notebook.pack(fill="both", expand=1)    
-        self.data = self.data
-        self.program = "/home/cherpin/git/trick/configure"
 
+        self.search_box = Frame(self.root)
+        self.search_entry = Entry(self.search_box)
+        self.search_entry.bind("<KeyRelease>", self.call_search)
+        self.pack(self.search_entry, side = "right")
+        self.search_label = Label(self.search_box, text = "Search for options:")
+        self.pack(self.search_label, side = "right")
+        self.pack(self.search_box, side="top", anchor="e")
+
+        self.build_notebook()
+
+        self.done_button = Button(self.root, text="Continue", command=self.my_continue)
+        self.pack(self.done_button, side="bottom", anchor="e")
+
+    def build_notebook(self):
+        self.notebook = ttk.Notebook(self.root)
+        self.pack(self.notebook, fill="both", expand=1)    
+        self.program = "/home/cherpin/git/trick/configure"
         self.sections = {}
         sections = getattr(self.source, "sections")._dict_()
         for section in sections:
             obj = getattr(getattr(self.source, "sections"), section)
-            self.sections[section] = Section(self.notebook, section, self.data)
-            # self.sections[section].get_frame().pack(fill="both", expand=1)
-        
-        self.done_button = Button(self.root, text="Continue", command=self.my_continue)
-        self.done_button.pack(side="bottom", anchor="e")
+            if len(getattr(obj, "options")._dict_()) > 0: #Note: not adding section if empty
+                self.sections[section] = Section(self.notebook, section, self.source)
+            
+
+
+    def call_search(self, e):
+        current = self.search_entry.get()
+        self._search(current, self.sections)
+        # App(self.search_data._dict_())
+        # self.notebook.destroy()
+        # self.build_notebook()
     
+    def _search(self, word, sections):
+        section_id = 0
+        for section in sections:
+            options = sections[section].components
+            count_hidden = 0
+            for option in options: #TODO: Allow for double grouping
+                if word != '' and not App.is_match(word, option):
+                    options[option].get_frame().pack_forget()
+                    count_hidden += 1
+                else:
+                    options[option].get_frame().pack(fill = options[option].fill, )
+            if count_hidden == len(sections[section].components):
+                self.notebook.hide(section_id)
+            else:
+                self.notebook.add(sections[section].get_frame(), text=section)
+                pass
+            section_id += 1
+    @staticmethod
+    def is_match(search, book):
+        return search.lower() in book
+    # def _search(self, word, search_obj):
+    #     for att_name in search_obj._dict_():
+    #         att = getattr(search_obj, att_name)
+    #         if att_name == "options":
+    #             for option in att._dict_():
+    #                 if word not in option: #TODO: Change to search in whole dict with getattr
+    #                     setattr(getattr(att, option), "hidden", "true")
+    #                 else:
+    #                     setattr(getattr(att, option), "hidden", "false")
+    #         elif type(att) is Data:
+    #             self._search(word, att)
+    #     # self.search(word, search_obj)
+
+        return self.source
+
+    # def search(self, word, search_obj):
+    #     flat_json = {
+    #         "sections" : {
+    #             "results" : {
+
+    #             }
+    #         }
+    #     }
+    #     found = None
+    #     for str_att in search_obj._dict_():
+    #         att = getattr(search_obj, str_att)
+    #         if type(att) is Data:
+    #             if word in str_att:
+    #                 found = str_att
+    #             else:
+    #                 self.search(word, att)
+    #         else:
+    #             if word in str(att):
+    #                 found = str(att)
+    #     return found
+                
+
     def get_frame(self):
         return self.root
     
     def my_continue(self):
-        cmd = get_configure_command(self.program, self.data._dict_())
+        cmd = get_configure_command(self.program, self.source._dict_())
         RunCommand(self, cmd)
         # self.save()
 
@@ -274,18 +368,14 @@ class App(Component):
             else:
                 filename = self.filename
         with open(filename, "w") as f:
-            try:
-                f.write(json.dumps(self.data._dict_(), indent=4)) #TODO: What happens if there is an error on this line
-            except Exception as e:
-                self.original_dict = self.data_dict()
-                raise RuntimeError(e)
+            f.write(json.dumps(self.source._dict_(), indent=4)) #TODO: What happens if there is an error on this line
 
     
     def open(self, filename):
         with open(filename, "r") as f:
             new_json = json.load(f)
             self.data = Data(**new_json)
-            self.original_dict = new_json
+            self.my_json = new_json
     
     #Adapted from https://stackoverflow.com/questions/4770993/how-can-i-make-silent-exceptions-louder-in-tkinter
     def report_callback_exception(self, exc, val, tb):
@@ -295,7 +385,6 @@ class App(Component):
         logging.error(traceback.format_exception(exc, val, tb))
         messagebox.showerror('Error Found', err)
     
-    @property
     def is_saved(self):
         # return DeepDiff(self.original_dict, self.data._dict_())
         return self.original_dict == self.data._dict_()
@@ -308,17 +397,23 @@ class RunCommand:
         self.command = command
         self.win.title("Running command")
         self.title = Label(self.win, text = "Click run to run the folling command:")
-        self.title.pack(padx=10, pady=10)
+        self.pack(self.title, padx=10, pady=10)
         self.label = Label(self.win, text=command)
-        self.label.pack(pady=10, padx=10)
+        self.pack(self.label, pady=10, padx=10)
         self.run_button = Button(self.win, text="run", command=self.run)
-        self.run_button.pack(pady=10)
+        self.pack(self.run_button, pady=10)
         self.output = ScrolledText(self.win, state="disabled", height=8, width=50)
-        self.output.pack(fill="both", expand=True)
+        self.pack(self.output, fill="both", expand=True)
         self.quit_button_and_save = Button(self.win, text="Quit and Save", command=self.quit_and_save)
-        self.quit_button_and_save.pack()
+        self.pack(self.quit_button_and_save, )
         self.quit_button = Button(self.win, text="Quit", command=self.quit)
-        self.quit_button.pack()
+        self.pack(self.quit_button, )
+    
+    def pack(self, tk, **kargs):
+        tk.pack(kargs)
+    
+    def grid(self, tk, **kargs):
+        tk.grid(kargs)
 
     def quit(self):
         self.win.destroy()
@@ -339,7 +434,13 @@ class RunCommand:
 
             
 if __name__ == "__main__":
-    a = App("config.json")
+    config_file = "config.json"
+    if not os.path.isfile(config_file):
+        config_file = {
+            "name" : "Trick Setup",
+            "sections" : {}
+        }
+    a = App(config_file)
     a.get_frame().mainloop()
 
 
