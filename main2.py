@@ -176,10 +176,10 @@ class OptionDir(Option):
 
         #Building GUI
         self.container = self.get_frame()
-        # self.container = LabelFrame(self.get_frame(), text=self.label)
-        # self.pack(self.container, fill="both", expand=True)
-        self.label_tk = Label(self.container, text=self.label)
-        self.pack(self.label_tk, side="left")
+        self.container = LabelFrame(self.get_frame(), text=self.label)
+        self.pack(self.container, fill="both", expand=True)
+        # self.label_tk = Label(self.container, text=self.label)
+        # self.pack(self.label_tk, side="left")
         self.directory_entry = Entry(self.container, width=self.width)
         self.directory_entry.bind('<KeyRelease>', self.handler)
         self.directory_entry.insert(0, self.value)
@@ -267,28 +267,36 @@ class App(Component):
 
 
         self.root = tk.Tk()
+        
         super().__init__(self.root, "app", self.data, special_required_params=["sections"], special_valid_params=["sections", "name"])
         
         self.name = "app" if self.name == "default" else self.name
         
         self.root.title(self.name)
+        # self.root.minsize(width=300, height=500)
+        # self.root.maxsize(width=800, height=800)
+
         self.root.report_callback_exception = self.report_callback_exception
+        
+        # self.root_scrollable.pack()
 
         self.search_box = Frame(self.root)
+        self.done_button = Button(self.search_box, text="Continue", command=self.my_continue)
+        self.pack(self.done_button, side="right", anchor="e")
         self.search_entry = Entry(self.search_box)
         self.search_entry.bind("<KeyRelease>", self.call_search)
         self.pack(self.search_entry, side = "right")
         self.search_label = Label(self.search_box, text = "Search for options:")
         self.pack(self.search_label, side = "right")
         self.pack(self.search_box, side="top", anchor="e")
+        
+        self.notebook_frame = Frame(self.root)
+        self.notebook_frame.pack(side="top")
+        self.build_notebook(self.notebook_frame)
+    
 
-        self.build_notebook()
-
-        self.done_button = Button(self.root, text="Continue", command=self.my_continue)
-        self.pack(self.done_button, side="bottom", anchor="e")
-
-    def build_notebook(self):
-        self.notebook = ttk.Notebook(self.root)
+    def build_notebook(self, parent):
+        self.notebook = ttk.Notebook(parent)
         self.pack(self.notebook, fill="both", expand=1)    
         self.program = "/home/cherpin/git/trick/configure"
         self.sections = {}
@@ -399,6 +407,54 @@ class App(Component):
     def is_saved(self):
         # return DeepDiff(self.original_dict, self.data._dict_())
         return self.original_dict == self.data._dict_()
+    
+    def get_scrollable_frame(self, parent, axis):
+    #Create a Main Frame
+        main_frame = Frame(parent)
+        main_frame.pack(fill="both", expand=True, side="left")
+
+        #Create  Canvas
+        my_canvas = Canvas(main_frame)
+        # my_canvas.pack(fill="both", expand=True)
+        my_canvas.grid(row=0, column=0, sticky="nsew")
+
+        self.get_scroll_bar(main_frame, my_canvas, axis)
+
+        #Create another frame inside the canvas
+        second_frame = Frame(my_canvas)
+        
+        #Add new frame to window in canvas
+        my_canvas.create_window((0,0), window=second_frame, anchor="nw")
+
+        return second_frame
+    
+    def get_scroll_bar(self, main_frame, my_canvas, axis):
+    #Add a scrollbar to canvas
+        if axis == "x" or axis == "both":
+            my_scrollbar = Scrollbar(main_frame, orient="horizontal", command=my_canvas.xview)
+            # my_scrollbar.pack(side="bottom", fill="x")
+            my_scrollbar.grid(row=100, column=0, sticky="ew")
+            my_canvas.configure(xscrollcommand=my_scrollbar.set)
+            my_canvas.bind("<Configure>", lambda e: my_canvas.configure(scrollregion=my_canvas.bbox("all")))
+            def _on_mouse_wheel(event):
+                my_canvas.xview_scroll(-1 * int((event.delta / 120)), "units")
+
+            my_canvas.bind_all("<MouseWheel>", _on_mouse_wheel)
+        if axis == "y" or axis == "both":
+            #Add a scrollbar to canvas
+            my_scrollbar = Scrollbar(main_frame, orient="vertical", command=my_canvas.yview)
+            # my_scrollbar.pack(side="right", fill="y")
+            my_scrollbar.grid(row=0, column=100, sticky="ns")
+            my_canvas.configure(yscrollcommand=my_scrollbar.set)
+            my_canvas.bind("<Configure>", lambda e: my_canvas.configure(scrollregion=my_canvas.bbox("all")))
+            def _on_mouse_wheel(event):
+                my_canvas.yview_scroll(-1 * int((event.delta / 120)), "units")
+
+            my_canvas.bind_all("<MouseWheel>", _on_mouse_wheel)
+        
+        main_frame.rowconfigure(0, weight=1)
+        main_frame.columnconfigure(0, weight=1)
+        #TODO: put error here if of the options above
     
 class RunCommand:
     def __init__(self, parent, command) -> None:
