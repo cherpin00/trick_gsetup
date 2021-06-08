@@ -1,8 +1,8 @@
 import tkinter as tk
 from tkinter import ttk
 from ttkthemes import ThemedTk
-from tkinter import BooleanVar, Toplevel, Text
-from tkinter.ttk import Frame, Button, Entry, Label, Checkbutton, LabelFrame
+from tkinter import BooleanVar, Toplevel, Text, Menu
+from tkinter.ttk import Frame, Button, Entry, Label, Checkbutton, LabelFrame, Scrollbar
 from tkinter import ttk
 import json
 from tkinter import filedialog
@@ -13,6 +13,7 @@ import logging
 from tkinter.scrolledtext import ScrolledText
 import traceback
 import os
+import argparse
 # from idlelib.ToolTip import *
 
 
@@ -232,7 +233,7 @@ class OptionDir(Option):
         self.pack(self.desc_label, side="left")
     
     def handler(self, event):
-        print(f"Setting value to {self.directory_entry.get()}")
+        logging.debug(f"Setting value to {self.directory_entry.get()}")
         self.value = self.directory_entry.get()
     
     def browse_dir(self):
@@ -268,7 +269,24 @@ class OptionBool(Option):
         self.value = "yes" if self.bool.get() else "no"
 
 class OptionStr(Option):
-    pass
+    def __init__(self, parent, section, name, data):
+        super().__init__(parent, section, name, data)
+
+        self.value = "" if self.value == "default" else self.value
+        self.label = self.name if self.label == "default" else self.label
+
+        self.tk_label = Label(self.get_frame(), text=self.label)
+        self.pack(self.tk_label, side="left", pady=10)
+
+        self.directory_entry = Entry(self.get_frame())
+        self.directory_entry.bind('<KeyRelease>', self.handler)
+        self.directory_entry.insert(0, self.value)
+        self.pack(self.directory_entry, fill="both", expand=True, side="left")
+
+
+    def handler(self, event):
+        logging.debug(f"Setting value to {self.directory_entry.get()}")
+        self.value = self.directory_entry.get()    
 
 class Section(Component):
     def __init__(self, parent, section, data:Data): #TODO: Figure out if I can pass in data instead of making it global
@@ -290,8 +308,10 @@ class Section(Component):
                 self.components[option] = OptionDir(self.get_frame(), section, option, data)
             elif my_type == "bool" or my_type == "flag":
                 self.components[option] = OptionBool(self.get_frame(), section, option, data)
+            elif my_type == "string":
+                self.components[option] = OptionStr(self.get_frame(), section, option, data)
             else:
-                raise RuntimeError(f"Option attribute '{my_type}' in {option} is not implemented yet.")
+                raise RuntimeError(f"Option type '{my_type}' in {option} is not implemented yet.")
             
             # self.components[option].get_frame().pack(fill="both", expand=1, side="top")
             self.pack(self.components[option].get_frame(), fill = self.components[option].fill, expand = self.components[option].expand)
@@ -300,7 +320,7 @@ class Section(Component):
         return self.frame
     
 class App(Component):
-    def __init__(self, my_json_or_filename):
+    def __init__(self, my_json_or_filename, program="/home/cherpin/git/trick/configure"):
         if type(my_json_or_filename) == str:
             self.open(my_json_or_filename)
             self.filename = my_json_or_filename
@@ -311,6 +331,7 @@ class App(Component):
         else:
             raise RuntimeError(f"Invalid parameter my_json_or_file: {my_json_or_filename}.")
 
+        self.program = program
 
         self.root = ThemedTk() #TODO: Figure out how to run this without pip install.
         self.root.get_themes()
@@ -326,10 +347,29 @@ class App(Component):
 
         self.root.report_callback_exception = self.report_callback_exception
         
-        # self.root_scrollable.pack()
+        self.build_search_bar(self.root)
+        self.build_menu(self.root)
+        
+        
+        self.notebook_frame = Frame(self.root)
+        self.notebook_frame.pack(side="top", expand=1, fill='both')
+        self.build_notebook(self.notebook_frame)
+    
 
-        self.search_box = Frame(self.root)
+    def build_notebook(self, parent):
+        self.notebook = ttk.Notebook(parent)
+        self.pack(self.notebook, fill="both", expand=1)    
+        self.sections = {}
+        sections = getattr(self.source, "sections")._dict_()
+        for section in sections:
+            obj = getattr(getattr(self.source, "sections"), section)
+            if len(getattr(obj, "options")._dict_()) > 0: #Note: not adding section if empty
+                self.sections[section] = Section(self.notebook, section, self.source)
+        
+        self.previous_section_length = 0
 
+    def build_search_bar(self, parent):
+        self.search_box = Frame(parent)
         self.done_button = Button(self.search_box, text="Continue", command=self.my_continue)
         CreateToolTip(self.done_button, "Continue to run and save screen.")
         self.pack(self.done_button, side="right", anchor="e")
@@ -344,25 +384,24 @@ class App(Component):
         # self.checked_toggle.bind("<MouseRelease>", self.call_search)
         self.checked_toggle.pack(side="left")
         self.pack(self.search_box, side="top", anchor="e", expand=True, fill="both")
-        
-        self.notebook_frame = Frame(self.root)
-        self.notebook_frame.pack(side="top", expand=1, fill='both')
-        self.build_notebook(self.notebook_frame)
+
+    def build_menu(self, parent):
+        menubar = Menu(parent)
+        filemenu = Menu(menubar, tearoff=0)
+        filemenu.add_command(label="Select command", command=self.select_command)
+        # filemenu.add_command(label="Open", command=lambda: print("hello"))
+        filemenu.add_command(label="Save options", command=self.save)
+        filemenu.add_separator()
+        filemenu.add_command(label="Exit", command=parent.destroy) #TODO: This may not work for non root parents
+        menubar.add_cascade(label="File", menu=filemenu)
     
+        parent.config(menu=menubar)
 
-    def build_notebook(self, parent):
-        self.notebook = ttk.Notebook(parent)
-        self.pack(self.notebook, fill="both", expand=1)    
-        self.program = "/home/cherpin/git/trick/configure"
-        self.sections = {}
-        sections = getattr(self.source, "sections")._dict_()
-        for section in sections:
-            obj = getattr(getattr(self.source, "sections"), section)
-            if len(getattr(obj, "options")._dict_()) > 0: #Note: not adding section if empty
-                self.sections[section] = Section(self.notebook, section, self.source)
-        
-        self.previous_section_length = 0
-
+    def select_command(self):
+        initDir = os.path.abspath(os.path.dirname(self.program))
+        file = filedialog.askopenfilename(initialdir=initDir)
+        self.program = os.path.abspath(file)
+            
 
     def call_search(self, e=None):
         current = self.search_entry.get()
@@ -562,13 +601,19 @@ class RunCommand:
 
             
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("--program", default="./configure")
+    args = parser.parse_args()
+    print(args.program)
+
     config_file = "config.json"
     if not os.path.isfile(config_file):
         config_file = {
             "name" : "Trick Setup",
             "sections" : {}
         }
-    a = App(config_file)
+    a = App(config_file, args.program)
     a.get_frame().mainloop()
 
 
