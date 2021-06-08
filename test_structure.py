@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter.constants import END
-from main2 import Data, OptionDir, OptionBool, Section, App
+from main import Data, OptionDir, OptionBool, Section, App
 
 def set_bool(bool, value):
     bool.bool.set(value)

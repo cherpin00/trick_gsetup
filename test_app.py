@@ -1,5 +1,5 @@
 import pytest
-from main2 import App
+from main import App
 
 def test_search():
     my_json = {

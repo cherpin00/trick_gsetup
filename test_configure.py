@@ -1,5 +1,5 @@
 import pytest
-from main2 import string_to_bool, bool_to_string, run, get_configure_command
+from main import string_to_bool, bool_to_string, run, get_configure_command
 
 
 def test_configure_flag_true():
