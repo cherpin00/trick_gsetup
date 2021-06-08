@@ -400,7 +400,8 @@ class App(Component):
     def select_command(self):
         initDir = os.path.abspath(os.path.dirname(self.program))
         file = filedialog.askopenfilename(initialdir=initDir)
-        self.program = os.path.abspath(file)
+        if file not in ("", ()):
+            self.program = os.path.abspath(file)
             
 
     def call_search(self, e=None):
