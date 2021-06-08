@@ -11,6 +11,7 @@ import logging
 from tkinter.scrolledtext import ScrolledText
 import traceback
 import os
+# from idlelib.ToolTip import *
 
 
 #TODO: Write test case for this function
@@ -163,7 +164,44 @@ class Option(Component):
     def get_frame(self):
         return self.frame
 
+class ToolTip(object): #Adapted from https://stackoverflow.com/questions/20399243/display-message-when-hovering-over-something-with-mouse-cursor-in-python
 
+    def __init__(self, widget):
+        self.widget = widget
+        self.tipwindow = None
+        self.id = None
+        self.x = self.y = 0
+
+    def showtip(self, text):
+        "Display text in tooltip window"
+        self.text = text
+        if self.tipwindow or not self.text:
+            return
+        x, y, cx, cy = self.widget.bbox("insert")
+        x = x + self.widget.winfo_rootx() + 57
+        y = y + cy + self.widget.winfo_rooty() +27
+        self.tipwindow = tw = Toplevel(self.widget)
+        tw.wm_overrideredirect(1)
+        tw.wm_geometry("+%d+%d" % (x, y))
+        label = Label(tw, text=self.text, justify=LEFT,
+                      background="#ffffe0", relief=SOLID, borderwidth=1,
+                      font=("tahoma", "8", "normal"))
+        label.pack(ipadx=1)
+
+    def hidetip(self):
+        tw = self.tipwindow
+        self.tipwindow = None
+        if tw:
+            tw.destroy()
+
+def CreateToolTip(widget, text):
+    toolTip = ToolTip(widget)
+    def enter(event):
+        toolTip.showtip(text)
+    def leave(event):
+        toolTip.hidetip()
+    widget.bind('<Enter>', enter)
+    widget.bind('<Leave>', leave)
 
 
 class OptionDir(Option):
@@ -186,8 +224,10 @@ class OptionDir(Option):
         self.pack(self.directory_entry, side="left")
         self.browse_button = Button(self.container, text="browse", command=self.browse_dir)
         self.pack(self.browse_button, side="right")
-        self.desc = Label(self.container, text = self.desc, font=("", 8)) #TODO: Make a hover-over pop up
-        self.pack(self.desc, side="left")
+        CreateToolTip(self.browse_button, "Browser for a directory.")
+        self.desc_label = Label(self.container, text = self.desc, font=("", 8)) #TODO: Make a hover-over pop up
+        CreateToolTip(self.desc_label, self.desc)
+        self.pack(self.desc_label, side="left")
     
     def handler(self, event):
         print(f"Setting value to {self.directory_entry.get()}")
@@ -212,13 +252,14 @@ class OptionBool(Option):
         #Setting defaults
         self.value = "no" if self.value == "default" else self.value
         self.label = self.name if self.label == "default" else self.label
-
+    
         #Building GUI
         self.bool = BooleanVar(value = self.value)
         self.check_button = Checkbutton(self.get_frame(), text=self.label, command=self.handler, variable=self.bool)
         self.pack(self.check_button, side="left")
-        self.desc = Label(self.get_frame(), text = self.desc) #TODO: Make a pop up
-        self.pack(self.desc, side="left")
+        self.desc_label = Label(self.get_frame(), text = self.desc) #TODO: Make a pop up
+        self.pack(self.desc_label, side="left")
+        CreateToolTip(self.desc_label, self.desc)
     
     def handler(self):
         print(f"Setting value to {self.bool.get()}.")
@@ -282,16 +323,18 @@ class App(Component):
 
         self.search_box = Frame(self.root)
         self.done_button = Button(self.search_box, text="Continue", command=self.my_continue)
+        CreateToolTip(self.done_button, "Continue to run and save screen.")
         self.pack(self.done_button, side="right", anchor="e")
         self.search_entry = Entry(self.search_box)
         self.search_entry.bind("<KeyRelease>", self.call_search)
+        CreateToolTip(self.search_entry, "Search for a specific option.")
         self.pack(self.search_entry, side = "right")
         self.search_label = Label(self.search_box, text = "Search for options:")
         self.pack(self.search_label, side = "right")
         self.pack(self.search_box, side="top", anchor="e")
         
         self.notebook_frame = Frame(self.root)
-        self.notebook_frame.pack(side="top")
+        self.notebook_frame.pack(side="top", expand=1, fill='both')
         self.build_notebook(self.notebook_frame)
     
 
@@ -305,7 +348,8 @@ class App(Component):
             obj = getattr(getattr(self.source, "sections"), section)
             if len(getattr(obj, "options")._dict_()) > 0: #Note: not adding section if empty
                 self.sections[section] = Section(self.notebook, section, self.source)
-            
+        
+        self.previous_section_length = 0
 
 
     def call_search(self, e):
@@ -317,6 +361,7 @@ class App(Component):
     
     def _search(self, word, sections):
         section_id = 0
+        self.current_section_length = 0
         for section in sections:
             options = sections[section].components
             count_hidden = 0
@@ -329,9 +374,13 @@ class App(Component):
             if count_hidden == len(sections[section].components):
                 self.notebook.hide(section_id)
             else:
+                if self.previous_section_length == 0:
+                    self.notebook.select(0)
                 self.notebook.add(sections[section].get_frame(), text=section)
+                self.current_section_length += 1
                 pass
             section_id += 1
+        self.previous_section_length = self.current_section_length
     @staticmethod
     def is_match(search, book):
         return search.lower() in book
