@@ -170,20 +170,23 @@ class OptionDir(Option):
     def __init__(self, parent, section, name, data):
         super().__init__(parent, section, name, data, special_valid_params=["width"])
         # Setting defaults
-        self.width = 10 if self.width == "default" else self.width
+        self.width = 50 if self.width == "default" else self.width
         self.label = self.name if self.label == "default" else self.label
         self.value = "" if self.value == "default" else self.value
 
         #Building GUI
-        self.label_tk = Label(self.get_frame(), text=self.label)
+        self.container = self.get_frame()
+        # self.container = LabelFrame(self.get_frame(), text=self.label)
+        # self.pack(self.container, fill="both", expand=True)
+        self.label_tk = Label(self.container, text=self.label)
         self.pack(self.label_tk, side="left")
-        self.directory_entry = Entry(self.get_frame(), width=self.width)
+        self.directory_entry = Entry(self.container, width=self.width)
         self.directory_entry.bind('<KeyRelease>', self.handler)
         self.directory_entry.insert(0, self.value)
         self.pack(self.directory_entry, side="left")
-        self.browse_button = Button(self.get_frame(), text="browse", command=self.browse_dir)
+        self.browse_button = Button(self.container, text="browse", command=self.browse_dir)
         self.pack(self.browse_button, side="right")
-        self.desc = Label(self.get_frame(), text = self.desc) #TODO: Make a pop up
+        self.desc = Label(self.container, text = self.desc, font=("", 8)) #TODO: Make a hover-over pop up
         self.pack(self.desc, side="left")
     
     def handler(self, event):
@@ -191,9 +194,17 @@ class OptionDir(Option):
         self.value = self.directory_entry.get()
     
     def browse_dir(self):
-        dir = filedialog.askdirectory()
-        self.directory_entry.delete(0, END)
-        self.directory_entry.insert(0, dir)
+        initDir=self.value
+        if initDir=="":
+            initDir=os.getcwd()
+        if not os.path.isdir(initDir):
+            messagebox.showerror("Error", f'Specified directory not found.  Value was:{"(Empty)" if initDir=="" else initDir}')
+            initDir=""
+        dir = filedialog.askdirectory(initialdir=initDir)
+        if not dir in ("", ()): #askdirectory can return an empty tuple(Escape pressed) or an empty string(Cancel pressed)
+            self.directory_entry.delete(0, END)
+            self.directory_entry.insert(0, dir)
+            self.handler(None)
 
 class OptionBool(Option):
     def __init__(self, parent, section, name, data):
