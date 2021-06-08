@@ -599,15 +599,20 @@ class RunCommand:
         self.output.configure(state="disabled")
         self.output.yview("end")
 
-            
+from load import load, write_help
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--program", default="./configure")
+    parser.add_argument("--config", default="./config.json")
+    parser.add_argument("--load", action="store_true", default=False)
     args = parser.parse_args()
-    print(args.program)
 
-    config_file = "config.json"
+    if args.load:
+        write_help(args.program)
+        load()
+    
+    config_file = args.config
     if not os.path.isfile(config_file):
         config_file = {
             "name" : "Trick Setup",
