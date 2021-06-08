@@ -1,6 +1,8 @@
-from abc import abstractproperty
 import tkinter as tk
-from tkinter import *
+from tkinter import ttk
+from ttkthemes import ThemedTk
+from tkinter import BooleanVar, Toplevel, Text
+from tkinter.ttk import Frame, Button, Entry, Label, Checkbutton, LabelFrame
 from tkinter import ttk
 import json
 from tkinter import filedialog
@@ -183,8 +185,8 @@ class ToolTip(object): #Adapted from https://stackoverflow.com/questions/2039924
         self.tipwindow = tw = Toplevel(self.widget)
         tw.wm_overrideredirect(1)
         tw.wm_geometry("+%d+%d" % (x, y))
-        label = Label(tw, text=self.text, justify=LEFT,
-                      background="#ffffe0", relief=SOLID, borderwidth=1,
+        label = Label(tw, text=self.text, justify="left",
+                      background="#ffffe0", relief="solid", borderwidth=1,
                       font=("tahoma", "8", "normal"))
         label.pack(ipadx=1)
 
@@ -208,7 +210,7 @@ class OptionDir(Option):
     def __init__(self, parent, section, name, data):
         super().__init__(parent, section, name, data, special_valid_params=["width"])
         # Setting defaults
-        self.width = 50 if self.width == "default" else self.width
+        self.width = 20 if self.width == "default" else self.width
         self.label = self.name if self.label == "default" else self.label
         self.value = "" if self.value == "default" else self.value
 
@@ -221,7 +223,7 @@ class OptionDir(Option):
         self.directory_entry = Entry(self.container, width=self.width)
         self.directory_entry.bind('<KeyRelease>', self.handler)
         self.directory_entry.insert(0, self.value)
-        self.pack(self.directory_entry, side="left")
+        self.pack(self.directory_entry, side="left", fill="both", expand=True)
         self.browse_button = Button(self.container, text="browse", command=self.browse_dir)
         self.pack(self.browse_button, side="right")
         CreateToolTip(self.browse_button, "Browser for a directory.")
@@ -242,7 +244,7 @@ class OptionDir(Option):
             initDir=""
         dir = filedialog.askdirectory(initialdir=initDir)
         if not dir in ("", ()): #askdirectory can return an empty tuple(Escape pressed) or an empty string(Cancel pressed)
-            self.directory_entry.delete(0, END)
+            self.directory_entry.delete(0, "end")
             self.directory_entry.insert(0, dir)
             self.handler(None)
 
@@ -264,6 +266,9 @@ class OptionBool(Option):
     def handler(self):
         print(f"Setting value to {self.bool.get()}.")
         self.value = "yes" if self.bool.get() else "no"
+
+class OptionStr(Option):
+    pass
 
 class Section(Component):
     def __init__(self, parent, section, data:Data): #TODO: Figure out if I can pass in data instead of making it global
@@ -307,7 +312,9 @@ class App(Component):
             raise RuntimeError(f"Invalid parameter my_json_or_file: {my_json_or_filename}.")
 
 
-        self.root = tk.Tk()
+        self.root = ThemedTk() #TODO: Figure out how to run this without pip install.
+        self.root.get_themes()
+        self.root.set_theme("plastik")
         
         super().__init__(self.root, "app", self.data, special_required_params=["sections"], special_valid_params=["sections", "name"])
         
@@ -322,6 +329,7 @@ class App(Component):
         # self.root_scrollable.pack()
 
         self.search_box = Frame(self.root)
+
         self.done_button = Button(self.search_box, text="Continue", command=self.my_continue)
         CreateToolTip(self.done_button, "Continue to run and save screen.")
         self.pack(self.done_button, side="right", anchor="e")
@@ -331,7 +339,11 @@ class App(Component):
         self.pack(self.search_entry, side = "right")
         self.search_label = Label(self.search_box, text = "Search for options:")
         self.pack(self.search_label, side = "right")
-        self.pack(self.search_box, side="top", anchor="e")
+        self.only_checked = BooleanVar(False)
+        self.checked_toggle = Checkbutton(self.search_box, variable=self.only_checked, text="Show only used options", command=self.call_search)
+        # self.checked_toggle.bind("<MouseRelease>", self.call_search)
+        self.checked_toggle.pack(side="left")
+        self.pack(self.search_box, side="top", anchor="e", expand=True, fill="both")
         
         self.notebook_frame = Frame(self.root)
         self.notebook_frame.pack(side="top", expand=1, fill='both')
@@ -352,7 +364,7 @@ class App(Component):
         self.previous_section_length = 0
 
 
-    def call_search(self, e):
+    def call_search(self, e=None):
         current = self.search_entry.get()
         self._search(current, self.sections)
         # App(self.search_data._dict_())
@@ -366,7 +378,7 @@ class App(Component):
             options = sections[section].components
             count_hidden = 0
             for option in options: #TODO: Allow for double grouping
-                if word != '' and not App.is_match(word, option):
+                if (word != '' and not App.is_match(word, option)) or (self.only_checked.get() and options[option].value in ("no", "")):
                     options[option].get_frame().pack_forget()
                     count_hidden += 1
                 else:
@@ -544,9 +556,9 @@ class RunCommand:
     
     def display(self, msg):
         self.output.configure(state="normal")
-        self.output.insert(END, msg)
+        self.output.insert("end", msg)
         self.output.configure(state="disabled")
-        self.output.yview(END)
+        self.output.yview("end")
 
             
 if __name__ == "__main__":
