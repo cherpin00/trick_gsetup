@@ -1,7 +1,11 @@
+import PIL
+import tkinter
+import ttkthemes
+
 import tkinter as tk
 from tkinter import ttk
 from ttkthemes import ThemedTk
-from tkinter import BooleanVar, Toplevel, Text, Menu
+from tkinter import BooleanVar, Toplevel, Text, Menu, Canvas
 from tkinter.ttk import Frame, Button, Entry, Label, Checkbutton, LabelFrame, Scrollbar
 from tkinter import ttk
 import json
@@ -47,6 +51,14 @@ def get_configure_command(comand, config_json):
                 value = str(option["value"])
                 if value == "":
                     continue
+            elif option["type"] == "envvar":
+                value = str(option["value"])
+                if value == "":
+                    if option_name in os.environ:
+                        del os.environ[option_name]
+                else:
+                    os.environ[option_name] = value
+                continue
             if value not in ("no"): #TODO: Check what possible values there are for false
                 #TODO: Should we add the no's to the comand
                 comand += f"{sep}--{option_name}"
@@ -217,7 +229,7 @@ class OptionDir(Option):
 
         #Building GUI
         self.container = self.get_frame()
-        self.container = LabelFrame(self.get_frame(), text=self.label)
+        self.container = LabelFrame(self.get_frame(), text=f"{self.label} - {self.desc}")
         self.pack(self.container, fill="both", expand=True)
         # self.label_tk = Label(self.container, text=self.label)
         # self.pack(self.label_tk, side="left")
@@ -228,9 +240,9 @@ class OptionDir(Option):
         self.browse_button = Button(self.container, text="browse", command=self.browse_dir)
         self.pack(self.browse_button, side="right")
         CreateToolTip(self.browse_button, "Browser for a directory.")
-        self.desc_label = Label(self.container, text = self.desc, font=("", 8)) #TODO: Make a hover-over pop up
-        CreateToolTip(self.desc_label, self.desc)
-        self.pack(self.desc_label, side="left")
+        # self.desc_label = Label(self.container, text = self.desc, font=("", 8)) #TODO: Make a hover-over pop up
+        # CreateToolTip(self.desc_label, self.desc)
+        # self.pack(self.desc_label, side="left")
     
     def handler(self, event):
         logging.debug(f"Setting value to {self.directory_entry.get()}")
@@ -268,25 +280,27 @@ class OptionBool(Option):
         print(f"Setting value to {self.bool.get()}.")
         self.value = "yes" if self.bool.get() else "no"
 
-class OptionStr(Option):
+class OptionStr(OptionDir):
     def __init__(self, parent, section, name, data):
         super().__init__(parent, section, name, data)
 
-        self.value = "" if self.value == "default" else self.value
-        self.label = self.name if self.label == "default" else self.label
+        self.browse_button.pack_forget()
 
-        self.tk_label = Label(self.get_frame(), text=self.label)
-        self.pack(self.tk_label, side="left", pady=10)
+        # self.value = "" if self.value == "default" else self.value
+        # self.label = self.name if self.label == "default" else self.label
 
-        self.directory_entry = Entry(self.get_frame())
-        self.directory_entry.bind('<KeyRelease>', self.handler)
-        self.directory_entry.insert(0, self.value)
-        self.pack(self.directory_entry, fill="both", expand=True, side="left")
+        # self.tk_label = Label(self.get_frame(), text=self.label)
+        # self.pack(self.tk_label, side="left", pady=10)
+
+        # self.directory_entry = Entry(self.get_frame())
+        # self.directory_entry.bind('<KeyRelease>', self.handler)
+        # self.directory_entry.insert(0, self.value)
+        # self.pack(self.directory_entry, fill="both", expand=True, side="left")
 
 
-    def handler(self, event):
-        logging.debug(f"Setting value to {self.directory_entry.get()}")
-        self.value = self.directory_entry.get()    
+    # def handler(self, event):
+        # logging.debug(f"Setting value to {self.directory_entry.get()}")
+        # self.value = self.directory_entry.get()    
 
 class Section(Component):
     def __init__(self, parent, section, data:Data): #TODO: Figure out if I can pass in data instead of making it global
@@ -308,7 +322,7 @@ class Section(Component):
                 self.components[option] = OptionDir(self.get_frame(), section, option, data)
             elif my_type == "bool" or my_type == "flag":
                 self.components[option] = OptionBool(self.get_frame(), section, option, data)
-            elif my_type == "string":
+            elif my_type == "string" or my_type == "envvar":
                 self.components[option] = OptionStr(self.get_frame(), section, option, data)
             else:
                 raise RuntimeError(f"Option type '{my_type}' in {option} is not implemented yet.")
@@ -333,14 +347,16 @@ class App(Component):
 
         self.program = program
 
+        # self.root = tkinter.Tk()
         self.root = ThemedTk() #TODO: Figure out how to run this without pip install.
         self.root.get_themes()
         self.root.set_theme("plastik")
+
         
         super().__init__(self.root, "app", self.data, special_required_params=["sections"], special_valid_params=["sections", "name"])
         
         self.name = "app" if self.name == "default" else self.name
-        
+
         self.root.title(self.name)
         # self.root.minsize(width=300, height=500)
         # self.root.maxsize(width=800, height=800)
@@ -369,21 +385,60 @@ class App(Component):
         self.previous_section_length = 0
 
     def build_search_bar(self, parent):
-        self.search_box = Frame(parent)
+        self.top = Frame(parent)
+        self.top.pack(side="top", expand=False, fill="x")
+
+        self.search_box = Frame(self.top)
+        self.search_box.rowconfigure(0, weight=1)
+        self.search_box.columnconfigure(0, weight=1)
+
         self.done_button = Button(self.search_box, text="Continue", command=self.my_continue)
         CreateToolTip(self.done_button, "Continue to run and save screen.")
-        self.pack(self.done_button, side="right", anchor="e")
+        self.done_button.grid(row=0,column=2, sticky="e")
+        
         self.search_entry = Entry(self.search_box)
         self.search_entry.bind("<KeyRelease>", self.call_search)
         CreateToolTip(self.search_entry, "Search for a specific option.")
-        self.pack(self.search_entry, side = "right")
+        self.search_entry.grid(row=0, column=1, sticky="e")
+
         self.search_label = Label(self.search_box, text = "Search for options:")
-        self.pack(self.search_label, side = "right")
+        self.search_label.grid(row=0, column=0, sticky="e")
+
+        self.help_button = Button(self.search_box, text=f"Click here for help", command=lambda: self.my_continue(Data(**{
+            "sections" : {
+                "Configuration" : {
+                    "options" : {
+                        "help" : {
+                            "type" : "flag",
+                            "value" : "true"
+                        }
+                    }
+                }
+            }
+        }), autoRun=True))
+        self.help_button.grid(row=0, column=0, sticky="w")
+        
+        self.pack(self.search_box, side="top", anchor="e", expand=False, fill="x")
+
         self.only_checked = BooleanVar(False)
-        self.checked_toggle = Checkbutton(self.search_box, variable=self.only_checked, text="Show only used options", command=self.call_search)
-        # self.checked_toggle.bind("<MouseRelease>", self.call_search)
-        self.checked_toggle.pack(side="left")
-        self.pack(self.search_box, side="top", anchor="e", expand=True, fill="both")
+        self.checked_toggle = Checkbutton(self.top, variable=self.only_checked, text="Show only used options", command=self.call_search)
+        self.checked_toggle.pack(side="right", anchor="e", expand=False, fill="x")
+
+        self.current_command = ScrolledText(self.top, height=3, borderwidth=0)
+        # self.current_command = Entry(self.top)
+        self.current_command.pack(side="left", anchor="w", fill="x", expand=True)
+
+        self.build_current_command()
+        self.root.bind("<KeyRelease>", self.build_current_command)
+        self.root.bind("<ButtonRelease-1>", self.build_current_command)
+
+    def build_current_command(self, e=None):
+        self.current_command["state"] = "normal"
+        text = get_configure_command(self.program, self.source._dict_())
+        self.current_command.delete(1.0, "end")
+        self.current_command.insert(1.0, text)
+        self.current_command["state"] = "disabled"
+        # self.current_command["text"] = text
 
     def build_menu(self, parent):
         menubar = Menu(parent)
@@ -407,9 +462,6 @@ class App(Component):
     def call_search(self, e=None):
         current = self.search_entry.get()
         self._search(current, self.sections)
-        # App(self.search_data._dict_())
-        # self.notebook.destroy()
-        # self.build_notebook()
     
     def _search(self, word, sections):
         section_id = 0
@@ -433,52 +485,20 @@ class App(Component):
                 pass
             section_id += 1
         self.previous_section_length = self.current_section_length
+    
     @staticmethod
     def is_match(search, book):
         return search.lower() in book
-    # def _search(self, word, search_obj):
-    #     for att_name in search_obj._dict_():
-    #         att = getattr(search_obj, att_name)
-    #         if att_name == "options":
-    #             for option in att._dict_():
-    #                 if word not in option: #TODO: Change to search in whole dict with getattr
-    #                     setattr(getattr(att, option), "hidden", "true")
-    #                 else:
-    #                     setattr(getattr(att, option), "hidden", "false")
-    #         elif type(att) is Data:
-    #             self._search(word, att)
-    #     # self.search(word, search_obj)
-
-        return self.source
-
-    # def search(self, word, search_obj):
-    #     flat_json = {
-    #         "sections" : {
-    #             "results" : {
-
-    #             }
-    #         }
-    #     }
-    #     found = None
-    #     for str_att in search_obj._dict_():
-    #         att = getattr(search_obj, str_att)
-    #         if type(att) is Data:
-    #             if word in str_att:
-    #                 found = str_att
-    #             else:
-    #                 self.search(word, att)
-    #         else:
-    #             if word in str(att):
-    #                 found = str(att)
-    #     return found
-                
 
     def get_frame(self):
         return self.root
     
-    def my_continue(self):
-        cmd = get_configure_command(self.program, self.source._dict_())
-        RunCommand(self, cmd)
+    def my_continue(self, source=None, autoRun=False):
+        if source == None:
+            cmd = get_configure_command(self.program, self.source._dict_())
+        else:
+            cmd = get_configure_command(self.program, source._dict_())
+        RunCommand(self, cmd, autoRun=autoRun)
         # self.save()
 
     def save(self, filename=None):
@@ -558,7 +578,7 @@ class App(Component):
         #TODO: put error here if of the options above
     
 class RunCommand:
-    def __init__(self, parent, command) -> None:
+    def __init__(self, parent, command, autoRun = False) -> None:
         self.win = tk.Toplevel()
         # sys.stderr = Stderr(self.win)
         self.parent = parent
@@ -576,6 +596,9 @@ class RunCommand:
         self.pack(self.quit_button_and_save, )
         self.quit_button = Button(self.win, text="Quit", command=self.quit)
         self.pack(self.quit_button, )
+
+        if autoRun:
+            self.run()
     
     def pack(self, tk, **kargs):
         tk.pack(kargs)
