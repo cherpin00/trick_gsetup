@@ -3,7 +3,7 @@ import tkinter
 import ttkthemes
 
 import tkinter as tk
-from tkinter import ttk
+from tkinter import Tk, ttk
 from ttkthemes import ThemedTk
 from tkinter import BooleanVar, Toplevel, Text, Menu, Canvas
 from tkinter.ttk import Frame, Button, Entry, Label, Checkbutton, LabelFrame, Scrollbar
@@ -363,7 +363,9 @@ class App(Component):
 
         self.root.report_callback_exception = self.report_callback_exception
         
-        self.build_search_bar(self.root)
+        self.header = Frame(self.root)
+        self.header.pack(fill="x")
+        self.build_search_bar(self.header)
         self.build_menu(self.root)
         
         
@@ -385,17 +387,15 @@ class App(Component):
         self.previous_section_length = 0
 
     def build_search_bar(self, parent):
-        self.top = Frame(parent)
-        self.top.pack(side="top", expand=False, fill="x")
+        #Search box
+        # SearchBox(self).get_frame().pack(anchor="e")
+        self.outer_search_box = LabelFrame(parent, text="Fileter Options")
+        self.outer_search_box.pack(side="right", anchor="n", fill="x")
 
-        self.search_box = Frame(self.top)
+        self.search_box = Frame(self.outer_search_box)
         self.search_box.rowconfigure(0, weight=1)
         self.search_box.columnconfigure(0, weight=1)
-
-        self.done_button = Button(self.search_box, text="Continue", command=self.my_continue)
-        CreateToolTip(self.done_button, "Continue to run and save screen.")
-        self.done_button.grid(row=0,column=2, sticky="e")
-        
+ 
         self.search_entry = Entry(self.search_box)
         self.search_entry.bind("<KeyRelease>", self.call_search)
         CreateToolTip(self.search_entry, "Search for a specific option.")
@@ -404,7 +404,33 @@ class App(Component):
         self.search_label = Label(self.search_box, text = "Search for options:")
         self.search_label.grid(row=0, column=0, sticky="e")
 
-        self.help_button = Button(self.search_box, text=f"Click here for help", command=lambda: self.my_continue(Data(**{
+        self.pack(self.search_box, side="top", anchor="e", expand=False, fill="x")
+
+        self.only_checked = BooleanVar(False)
+        self.checked_toggle = Checkbutton(self.outer_search_box, variable=self.only_checked, text="Show only used options", command=self.call_search)
+        self.checked_toggle.pack(side="right", anchor="e", expand=False, fill="x")
+
+        #End Search box
+        
+
+        #Current Script
+        self.current_script = Frame(parent)
+        self.current_script.pack(side="left", anchor="n", fill="x")
+
+        self.label_frame = LabelFrame(self.current_script, text="Current Script with Options")
+        self.label_frame.pack(side="top", expand=True, fill="x")
+
+        self.current_command = ScrolledText(self.label_frame, height=3, borderwidth=0)
+        self.current_command.pack(side="top", anchor="w", fill="x", expand=True)
+
+        self.build_current_command()
+        self.root.bind("<KeyRelease>", self.build_current_command)
+        self.root.bind("<ButtonRelease-1>", self.build_current_command)
+
+        self.button_frame = Frame(self.label_frame)
+        self.button_frame.pack()
+
+        self.help_button = Button(self.button_frame, text=f"help", command=lambda: self.my_continue(Data(**{
             "sections" : {
                 "Configuration" : {
                     "options" : {
@@ -416,21 +442,12 @@ class App(Component):
                 }
             }
         }), autoRun=True))
-        self.help_button.grid(row=0, column=0, sticky="w")
-        
-        self.pack(self.search_box, side="top", anchor="e", expand=False, fill="x")
+        self.help_button.pack(side="left", anchor="w", expand=True, fill="both")
 
-        self.only_checked = BooleanVar(False)
-        self.checked_toggle = Checkbutton(self.top, variable=self.only_checked, text="Show only used options", command=self.call_search)
-        self.checked_toggle.pack(side="right", anchor="e", expand=False, fill="x")
 
-        self.current_command = ScrolledText(self.top, height=3, borderwidth=0)
-        # self.current_command = Entry(self.top)
-        self.current_command.pack(side="left", anchor="w", fill="x", expand=True)
-
-        self.build_current_command()
-        self.root.bind("<KeyRelease>", self.build_current_command)
-        self.root.bind("<ButtonRelease-1>", self.build_current_command)
+        self.done_button = Button(self.button_frame, text="Continue", command=self.my_continue)
+        CreateToolTip(self.done_button, "Execute command with options")
+        self.done_button.pack(side="right", anchor="e", expand=True, fill="both")
 
     def build_current_command(self, e=None):
         self.current_command["state"] = "normal"
@@ -584,18 +601,17 @@ class RunCommand:
         self.parent = parent
         self.command = command
         self.win.title("Running command")
-        self.title = Label(self.win, text = "Click run to run the folling command:")
-        self.pack(self.title, padx=10, pady=10)
-        self.label = Label(self.win, text=command)
-        self.pack(self.label, pady=10, padx=10)
+        self.title = Text(self.win, height=3)
+        self.title.insert(1.0, f"Click run to run the folling command:\n{command}")
+        self.pack(self.title, anchor="w", expand=False, fill="x")
         self.run_button = Button(self.win, text="run", command=self.run)
-        self.pack(self.run_button, pady=10)
+        self.pack(self.run_button, anchor="w")
         self.output = ScrolledText(self.win, state="disabled", height=8, width=50)
-        self.pack(self.output, fill="both", expand=True)
+        self.pack(self.output, fill="both", expand=True, anchor="w")
         self.quit_button_and_save = Button(self.win, text="Quit and Save", command=self.quit_and_save)
-        self.pack(self.quit_button_and_save, )
+        self.pack(self.quit_button_and_save, anchor="w")
         self.quit_button = Button(self.win, text="Quit", command=self.quit)
-        self.pack(self.quit_button, )
+        self.pack(self.quit_button, anchor="w")
 
         if autoRun:
             self.run()
@@ -622,6 +638,42 @@ class RunCommand:
         self.output.insert("end", msg)
         self.output.configure(state="disabled")
         self.output.yview("end")
+
+class SearchBox:
+    def __init__(self, parent:App) -> None:
+        self.parent = parent
+        
+        self.top = Frame(self.parent.get_frame())
+
+        self.search_box = LabelFrame(self.top, text="Filter Options")
+        self.search_box.rowconfigure(0, weight=1)
+        self.search_box.columnconfigure(0, weight=1)
+
+        # self.done_button = Button(self.search_box, text="Continue", command=self.my_continue)
+        # CreateToolTip(self.done_button, "Continue to run and save screen.")
+        # self.done_button.grid(row=0,column=2, sticky="e")
+        
+        self.search_entry = Entry(self.search_box)
+        self.search_entry.bind("<KeyRelease>", self.parent.call_search)
+        CreateToolTip(self.search_entry, "Search for a specific option.")
+        self.search_entry.grid(row=0, column=1, sticky="e")
+
+        self.search_label = Label(self.search_box, text = "Search for options:")
+        self.search_label.grid(row=0, column=0, sticky="e")
+
+        self.search_box.pack(side="top", anchor="e", expand=False, fill="x")
+    
+    def get_frame(self):
+        return self.top
+
+class CurrentBox:
+    def __init__(self, parent:App) -> None:
+        self.parent = parent
+        
+
+
+
+
 
 from load import load, write_help
 if __name__ == "__main__":
