@@ -90,8 +90,8 @@ def run(program, *args, **kargs):
         value = kargs[key]
         new_args.append(f"--{key}={value}")
     for value in args:
-        new_args.append(f"-{value}")
-    logging.info("Running: " + str([program.split(" ")] + new_args))
+        new_args.append(f"--{value}")
+    logging.info("Running: " + str(program.split(" ") + new_args))
     process = subprocess.run(program.split(" ") + new_args, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
     return process.stdout.decode()
 
