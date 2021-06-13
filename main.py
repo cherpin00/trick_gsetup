@@ -41,8 +41,9 @@ def QuoteForPOSIX(string): #Adapted from https://code.activestate.com/recipes/49
 
     return "\\'".join("'" + p + "'" for p in string.split("'"))
 
-def get_configure_command(comand, config_json):
+def get_configure_command(command, config_json, include_vars=False):
     sep = " "
+    vars = ""
     for section_name, section in config_json["sections"].items():
         for option_name, option in section["options"].items():
             if option["type"] in ("bool", "flag"):
@@ -58,14 +59,18 @@ def get_configure_command(comand, config_json):
                         del os.environ[option_name]
                 else:
                     os.environ[option_name] = value
+                    if include_vars:
+                        vars += f"{option_name} = {value}\n"
                 continue
             if value not in ("no"): #TODO: Check what possible values there are for false
                 #TODO: Should we add the no's to the comand
-                comand += f"{sep}--{option_name}"
+                command += f"{sep}--{option_name}"
                 if option["type"] != "flag":
                     value = QuoteForPOSIX(value)
-                    comand += f"={value}"
-    return comand
+                    command += f"={value}"
+    if include_vars:
+        command = vars + command
+    return command
 
 def string_to_bool(string):
     if string.lower() in ("yes", "true"):
@@ -86,7 +91,7 @@ def run(program, *args, **kargs):
         new_args.append(f"--{key}={value}")
     for value in args:
         new_args.append(f"-{value}")
-    print("Running: " + str([program.split(" ")] + new_args))
+    logging.info("Running: " + str([program.split(" ")] + new_args))
     process = subprocess.run(program.split(" ") + new_args, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
     return process.stdout.decode()
 
@@ -229,7 +234,7 @@ class OptionDir(Option):
 
         #Building GUI
         self.container = self.get_frame()
-        self.container = LabelFrame(self.get_frame(), text=f"{self.label} - {self.desc}")
+        self.container = LabelFrame(self.get_frame(), text=f"{self.label} - Help:{self.desc}")
         self.pack(self.container, fill="both", expand=True)
         # self.label_tk = Label(self.container, text=self.label)
         # self.pack(self.label_tk, side="left")
@@ -277,7 +282,7 @@ class OptionBool(Option):
         CreateToolTip(self.desc_label, self.desc)
     
     def handler(self):
-        print(f"Setting value to {self.bool.get()}.")
+        logging.debug(f"Setting value to {self.bool.get()}.")
         self.value = "yes" if self.bool.get() else "no"
 
 class OptionStr(OptionDir):
@@ -309,7 +314,7 @@ class Section(Component):
         super().__init__(parent, section, getattr(getattr(data, "sections"), section), special_valid_params=valid_params, special_required_params=required_params)
     
         self.components = {}
-        self.frame = Frame(parent)
+        # self.frame = Frame(parent)
         # self.frame.pack(fill="both", expand = 1) #TODO: Not sure if this is needed
         if type(parent) == Notebook:
             parent.add(self.get_frame(), text=section)
@@ -332,7 +337,7 @@ class Section(Component):
     
     def get_frame(self):
         return self.frame
-    
+
 class App(Component):
     def __init__(self, my_json_or_filename, program="/home/cherpin/git/trick/configure"):
         if type(my_json_or_filename) == str:
@@ -345,38 +350,93 @@ class App(Component):
         else:
             raise RuntimeError(f"Invalid parameter my_json_or_file: {my_json_or_filename}.")
 
-        self.program = program
+        self._program = program
 
-        # self.root = tkinter.Tk()
-        self.root = ThemedTk() #TODO: Figure out how to run this without pip install.
-        self.root.get_themes()
-        self.root.set_theme("plastik")
+        self.root = tkinter.Tk()
+        # self.root = ThemedTk() #TODO: Figure out how to run this without pip install.
+        # self.root.get_themes()
+        # self.root.set_theme("plastik")
+        self.root.geometry("1050x800") #TODO: Set geometry based on width of notebook
 
-        
         super().__init__(self.root, "app", self.data, special_required_params=["sections"], special_valid_params=["sections", "name"])
         
         self.name = "app" if self.name == "default" else self.name
 
         self.root.title(self.name)
-        # self.root.minsize(width=300, height=500)
+        self.root.minsize(width=1000, height=400)
         # self.root.maxsize(width=800, height=800)
 
         self.root.report_callback_exception = self.report_callback_exception
         
         self.header = Frame(self.root)
-        self.header.pack(fill="x")
-        self.build_search_bar(self.header)
+        self.header.pack(side = "top", fill="x")
+        self.footer = Frame(self.root)
+        self.footer.pack(side="bottom", fill="x")
+        self.options_title = "Options for script"
+        self.notebook_label_frame = LabelFrame(self.root, text=self.options_title) #TODO: Add dynamic (script) and (filtered) text
+        self.notebook_label_frame.pack(expand=True, fill="both")
+        self.body = self.get_body(self.notebook_label_frame)
+
+        self.add_shortcuts()
         self.build_menu(self.root)
+        self.build_search_bar(self.header)
         
-        
-        self.notebook_frame = Frame(self.root)
-        self.notebook_frame.pack(side="top", expand=1, fill='both')
-        self.build_notebook(self.notebook_frame)
+        self.notebook_frame = Frame(self.body)
+        self.notebook_frame.pack(side="top", expand=True, fill='both')
+        self.build_notebook(self.body)
+        self.build_current_command() #We can only run this after we build a notebook
     
+    @property
+    def program(self):
+        return self._program
+    
+    @program.setter
+    def program(self, value):
+        self._program = value
+        self.update_status()
+        self.build_current_command()
+    
+    def add_shortcuts(self):
+        self.root.bind(f"<Alt-h>", lambda e: self.show_help())
+        self.root.bind(f"<Alt-e>", lambda e: self.execute())
+        self.root.bind(f"<Alt-o>", lambda e: self.focus_options())
+        self.root.bind(f"<Alt-s>", lambda e: self.focus_search())
+
+    def focus_options(self):
+        # print("Hello")
+        self.notebook_label_frame.focus_set()
+    
+    def focus_search(self):
+        self.search_entry.focus_set()
+
+    def get_body(self, parent):
+        main_frame = Frame(parent)
+        main_frame.pack(fill="both", expand=True)
+
+        my_canvas = Canvas(main_frame)
+        my_canvas.pack(side="left", fill="both", expand=True)
+
+        my_scrollbar = ttk.Scrollbar(main_frame, orient="vertical", command=my_canvas.yview)
+        my_scrollbar.pack(side="right", fill="y")
+
+        my_canvas.configure(yscrollcommand=my_scrollbar.set)
+        my_canvas.bind("<Configure>", lambda e: my_canvas.configure(scrollregion=my_canvas.bbox("all")))
+
+        second_frame = Frame(my_canvas)
+
+        my_canvas.create_window((0, 0), window=second_frame, anchor="nw")
+        return second_frame
+
+    def conf(self, e):
+            self.body.update()
+            height = self.body.winfo_height()
+            width = self.body.winfo_width()
+            self.notebook.configure(height=height, width=width)
 
     def build_notebook(self, parent):
         self.notebook = ttk.Notebook(parent)
-        self.pack(self.notebook, fill="both", expand=1)    
+        # self.body.bind("<Configure>", self.conf)
+        self.notebook.pack(fill="both", expand=1) 
         self.sections = {}
         sections = getattr(self.source, "sections")._dict_()
         for section in sections:
@@ -389,7 +449,7 @@ class App(Component):
     def build_search_bar(self, parent):
         #Search box
         # SearchBox(self).get_frame().pack(anchor="e")
-        self.outer_search_box = LabelFrame(parent, text="Fileter Options")
+        self.outer_search_box = LabelFrame(parent, text="Filter Options")
         self.outer_search_box.pack(side="right", anchor="n", fill="x")
 
         self.search_box = Frame(self.outer_search_box)
@@ -401,7 +461,7 @@ class App(Component):
         CreateToolTip(self.search_entry, "Search for a specific option.")
         self.search_entry.grid(row=0, column=1, sticky="e")
 
-        self.search_label = Label(self.search_box, text = "Search for options:")
+        self.search_label = Label(self.search_box, text = "Search for options:", underline=0)
         self.search_label.grid(row=0, column=0, sticky="e")
 
         self.pack(self.search_box, side="top", anchor="e", expand=False, fill="x")
@@ -415,43 +475,62 @@ class App(Component):
 
         #Current Script
         self.current_script = Frame(parent)
-        self.current_script.pack(side="left", anchor="n", fill="x")
+        self.current_script.pack(side="left", anchor="n", fill="x", expand=True)
 
-        self.label_frame = LabelFrame(self.current_script, text="Current Script with Options")
+        self.label_frame = LabelFrame(self.current_script, text="Current Script with Options", underline=21)
         self.label_frame.pack(side="top", expand=True, fill="x")
 
         self.current_command = ScrolledText(self.label_frame, height=3, borderwidth=0)
         self.current_command.pack(side="top", anchor="w", fill="x", expand=True)
 
-        self.build_current_command()
         self.root.bind("<KeyRelease>", self.build_current_command)
         self.root.bind("<ButtonRelease-1>", self.build_current_command)
+
+        self.status_frame = Frame(self.label_frame)
+        self.status_frame.pack()
+
+        status, color = self.get_status()
+        self.label_status = Label(self.status_frame, text=f"Status: {status}", foreground=color)
+        self.label_status.pack()
 
         self.button_frame = Frame(self.label_frame)
         self.button_frame.pack()
 
-        self.help_button = Button(self.button_frame, text=f"help", command=lambda: self.my_continue(Data(**{
-            "sections" : {
-                "Configuration" : {
-                    "options" : {
-                        "help" : {
-                            "type" : "flag",
-                            "value" : "true"
-                        }
-                    }
-                }
-            }
-        }), autoRun=True))
-        self.help_button.pack(side="left", anchor="w", expand=True, fill="both")
+        self.help_button = Button(self.button_frame, text=f"Help for script", command=self.show_help, underline=0)
+        self.help_button.pack(side="left", anchor="w", expand=True, fill="both", padx=10)
 
 
-        self.done_button = Button(self.button_frame, text="Continue", command=self.my_continue)
+        self.done_button = Button(self.button_frame, text="Execute command with options", command=self.execute, underline=0)
         CreateToolTip(self.done_button, "Execute command with options")
-        self.done_button.pack(side="right", anchor="e", expand=True, fill="both")
+        self.done_button.pack(side="right", anchor="e", expand=True, fill="both", padx=5)
+    
+    def update_status(self):
+        self.label_status["text"], self.label_status["foreground"] = self.get_status()
+
+    def get_status(self):
+        rvalue = ""
+        color = "black"
+        if os.access(self.program, os.X_OK):
+            rvalue += "Valid"
+            color = "green"
+        else:
+            rvalue += "Invalid"
+            color = "red"
+        return rvalue + " Executable File", color
+
+    def show_help(self):
+        self.win = tk.Toplevel()
+        self.win.title("General help for the configure script")
+        self.win.geometry("800x500")
+        output = run(self.program, "help")
+        self.output = ScrolledText(self.win, state="normal", height=8, width=50)
+        self.output.insert(1.0, output)
+        self.output["state"] = "disabled"
+        self.pack(self.output, fill="both", expand=True, anchor="w")
 
     def build_current_command(self, e=None):
         self.current_command["state"] = "normal"
-        text = get_configure_command(self.program, self.source._dict_())
+        text = get_configure_command(self.program, self.source._dict_(), include_vars=True)
         self.current_command.delete(1.0, "end")
         self.current_command.insert(1.0, text)
         self.current_command["state"] = "disabled"
@@ -479,6 +558,11 @@ class App(Component):
     def call_search(self, e=None):
         current = self.search_entry.get()
         self._search(current, self.sections)
+        msg = " (filtered)"
+        if current != "" or self.only_checked.get():
+            self.notebook_label_frame["text"] = self.options_title + msg
+        else:
+            self.notebook_label_frame["text"] = self.options_title
     
     def _search(self, word, sections):
         section_id = 0
@@ -510,12 +594,31 @@ class App(Component):
     def get_frame(self):
         return self.root
     
-    def my_continue(self, source=None, autoRun=False):
+    def execute(self, source=None, autoRun=False):
         if source == None:
             cmd = get_configure_command(self.program, self.source._dict_())
         else:
             cmd = get_configure_command(self.program, source._dict_())
-        RunCommand(self, cmd, autoRun=autoRun)
+        # RunCommand(self, cmd, autoRun=autoRun)
+        answer = messagebox.askyesno(title="Confirmation", message=f"Are you sure that you want to run the following command:\n{cmd}")
+        if answer:
+            output = run(cmd)
+            def quit():
+                self.win.destroy()
+                self.root.destroy()
+            self.win = tk.Tk()
+            self.win.title("Script's output")
+            self.win.geometry("800x500")
+            self.output = ScrolledText(self.win, state="normal", height=8, width=50)
+            self.output.insert(1.0, output)
+            self.output["state"] = "disabled"
+            self.output.pack(fill="both", expand=True, anchor="w")
+            self.finish_button = Button(self.win, text="Finished", command=quit)
+            self.finish_button.pack(anchor="e")
+            # self.root.destroy() #TODO: Check for a successfull output.
+            self.save()
+            self.win.mainloop()
+        
         # self.save()
 
     def save(self, filename=None):
@@ -615,6 +718,10 @@ class RunCommand:
 
         if autoRun:
             self.run()
+
+        self.win.bind("<Alt-r>", lambda e: self.run())
+        self.win.bind("<Alt-q>", lambda e: self.quit())
+        self.win.bind("<Alt-s>", lambda e: self.quit())
     
     def pack(self, tk, **kargs):
         tk.pack(kargs)
@@ -677,6 +784,7 @@ class CurrentBox:
 
 from load import load, write_help
 if __name__ == "__main__":
+    logging.getLogger().setLevel(logging.DEBUG)
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--program", default="./configure")
