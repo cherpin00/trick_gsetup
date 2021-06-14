@@ -1,3 +1,4 @@
+import pytest
 import tkinter as tk
 from tkinter.constants import END
 from main import Data, OptionDir, OptionBool, Section, App
@@ -258,52 +259,7 @@ def test_app_with_file():
     }
     assert a.data._dict_() == my_json
 
-def test_is_saved_json():
-    #Test to see if the App can tell when the json is saved
-    my_json = {
-            "sections" : {
-                "test_cases" : {
-                    "size" : 12,
-                    "options" : {
-                        "option_name0" : {
-                            "type" : "dir",
-                            "value" : "/home/cherpin",
-                        },
-                        "option_name1" : {
-                            "type" : "dir",
-                            "value" : "/home/cherpin",
-                            "width" : 20
-                        },
-                        "option_name2" : {
-                            "type" : "dir",
-                            "width" : 20
-                        },
-                        "option_name3" : {
-                            "type" : "bool",
-                        },
-                        "option_name4" : {
-                            "type" : "bool",
-                            "value" : True
-                        },
-                        "option_name5" : {
-                            "type" : "bool",
-                            "value" : "yes"
-                        }
-                    }
-                }, 
-            }
-        }
-    a = App(my_json)
-    assert a.is_saved == False #We expect App to add value if not there
-    for key, value in a.sections.items():
-        for option, obj, in value.components.items():
-            if obj.type == "dir":
-                set_dir(obj, "hello")
-            elif obj.type == "bool":
-                set_bool(obj, True)
-            else:
-                raise RuntimeError("Unsupported type detected!")
-
+def test_unsupported_types():
     my_json = {
         "sections" : {
             "test_cases" : {
@@ -328,20 +284,20 @@ def test_is_saved_json():
                         "value" : "yes"
                     },
                     "option_name4" : {
-                        "type" : "bool",
+                        "type" : "envvar",
                         "value" : "yes"
                     },
                     "option_name5" : {
-                        "type" : "bool",
+                        "type" : "bad",
                         "value" : "yes"
                     }
                 }
             }, 
         }
     }
-    assert a.is_saved == False
-    a.save("config_test_is_saved_json.json")
-    assert a.is_saved == True
 
-def test_save_app():
-    assert True == False #TODO: implement this
+    with pytest.raises(RuntimeError) as e_info:
+        a = App(my_json)
+    e_info.value.args[0] == "Option type 'bad' in option_name5 is not implemented yet."
+
+

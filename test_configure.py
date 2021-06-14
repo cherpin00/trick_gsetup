@@ -1,5 +1,8 @@
 import pytest
+import os
+
 from main import string_to_bool, bool_to_string, run, get_configure_command
+
 
 
 def test_configure_flag_true():
@@ -147,8 +150,58 @@ def test_run():
     with pytest.raises(FileNotFoundError) as e_info:
         ps = run("configure")
 
-def test_hidden_option():
-    assert True == False #TODO: Implement this
+def test_envvar():
+    my_json = {
+        "sections" : {
+            "Test" : {
+                "options" : {
+                    "help" : {
+                        "type" : "flag",
+                        "value" : "True"
+                    },
+                    "CC1" : {
+                        "type" : "envvar",
+                        "value" : ""
+                    },
+                    "CC2" : {
+                        "type" : "envvar",
+                        "value" : "hello"
+                    },
+                    "CC3" : {
+                        "type" : "envvar",
+                        "value" : "hello world"
+                    }
+                }
+            }
+        }
+    }
+    cmd = get_configure_command("test", my_json, include_vars=True)
+    assert os.environ.get("CC1") == None
+    assert os.environ.get("CC2") == "hello"
+    assert os.environ.get("CC3") == "hello world"
+    assert cmd == "CC2 = hello\nCC3 = hello world\ntest --help"
 
-def test_hidden_section():
-    assert True == False #TODO: Implement this
+def test_unsupported_type():
+    my_json = {
+        "sections" : {
+            "Test" : {
+                "options" : {
+                    "help" : {
+                        "type" : "flag",
+                        "value" : "True"
+                    },
+                    "CC1" : {
+                        "type" : "envvar",
+                        "value" : ""
+                    },
+                    "unsupported" : {
+                        "type" : "bad",
+                        "value" : ""
+                    }
+                }
+            }
+        }
+    }
+    with pytest.raises(RuntimeError) as e_info:
+        cmd = get_configure_command("test", my_json)
+    assert e_info.value.args[0] == "Option type 'bad' in {'type': 'bad', 'value': ''} is not implemented yet."

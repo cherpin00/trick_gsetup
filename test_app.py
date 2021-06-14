@@ -1,5 +1,6 @@
 import pytest
 from main import App
+import threading
 
 def test_search():
     my_json = {
@@ -17,9 +18,21 @@ def test_search():
         }
     }
     a = App(my_json)
-    a.search_data = a.data
-    r_value = a._search("help", a.search_data)._dict_()
-    assert {'sections': {'Test': {'options': {'another': {'hidden': 'true', 'type': 'bool', 'value': 'no'}, 'help': {'type': 'flag', 'value': 'no'}}}}} == r_value
+    result = a._search("help", a.sections)
+    expected = {
+        "sections" : {
+            "Test" : {
+                "options" : {
+                    "help" : {
+                        "type" : "flag"
+                    }
+                }
+            }
+        }
+    }
+    assert expected == result
+
+    
 
 if __name__ == "__main__":
     test_search()
