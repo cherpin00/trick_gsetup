@@ -1,11 +1,12 @@
-import PIL
+# import PIL
 import tkinter
-import ttkthemes
+# import ttkthemes
 
 import tkinter as tk
 from tkinter import Tk, ttk
-from ttkthemes import ThemedTk
+#from ttkthemes import ThemedTk
 from tkinter import BooleanVar, Toplevel, Text, Menu, Canvas
+from tkinter.constants import SUNKEN
 from tkinter.ttk import Frame, Button, Entry, Label, Checkbutton, LabelFrame, Scrollbar
 from tkinter import ttk
 import json
@@ -234,7 +235,7 @@ class OptionDir(Option):
 
         #Building GUI
         self.container = self.get_frame()
-        self.container = LabelFrame(self.get_frame(), text=f"{self.label} - Help:{self.desc}")
+        self.container = LabelFrame(self.get_frame(), text=f"{self.label} - {self.desc}")
         self.pack(self.container, fill="both", expand=True)
         # self.label_tk = Label(self.container, text=self.label)
         # self.pack(self.label_tk, side="left")
@@ -285,10 +286,11 @@ class OptionBool(Option):
         logging.debug(f"Setting value to {self.bool.get()}.")
         self.value = "yes" if self.bool.get() else "no"
 
-class OptionStr(OptionDir):
+class OptionEnvVar(OptionDir):
     def __init__(self, parent, section, name, data):
         super().__init__(parent, section, name, data)
 
+        self.container["text"] = "ENV: " + self.container["text"]
         self.browse_button.pack_forget()
 
         # self.value = "" if self.value == "default" else self.value
@@ -328,7 +330,7 @@ class Section(Component):
             elif my_type == "bool" or my_type == "flag":
                 self.components[option] = OptionBool(self.get_frame(), section, option, data)
             elif my_type == "string" or my_type == "envvar":
-                self.components[option] = OptionStr(self.get_frame(), section, option, data)
+                self.components[option] = OptionEnvVar(self.get_frame(), section, option, data)
             else:
                 raise RuntimeError(f"Option type '{my_type}' in {option} is not implemented yet.")
             
@@ -397,8 +399,8 @@ class App(Component):
         self.build_current_command()
     
     def add_shortcuts(self):
-        self.root.bind(f"<Alt-h>", lambda e: self.show_help())
-        self.root.bind(f"<Alt-e>", lambda e: self.execute())
+        # self.root.bind(f"<Alt-h>", lambda e: self.show_help())
+        # self.root.bind(f"<Alt-e>", lambda e: self.execute())
         self.root.bind(f"<Alt-o>", lambda e: self.focus_options())
         self.root.bind(f"<Alt-s>", lambda e: self.focus_search())
 
@@ -416,15 +418,17 @@ class App(Component):
         my_canvas = Canvas(main_frame)
         my_canvas.pack(side="left", fill="both", expand=True)
 
-        my_scrollbar = ttk.Scrollbar(main_frame, orient="vertical", command=my_canvas.yview)
+        my_scrollbar = ttk.Scrollbar(master=main_frame, orient="vertical", command=my_canvas.yview)
         my_scrollbar.pack(side="right", fill="y")
 
         my_canvas.configure(yscrollcommand=my_scrollbar.set)
-        my_canvas.bind("<Configure>", lambda e: my_canvas.configure(scrollregion=my_canvas.bbox("all")))
 
         second_frame = Frame(my_canvas)
+        canvasFrame = my_canvas.create_window((0, 0), window=second_frame, anchor="nw")
+        
+        second_frame.bind("<Configure>", lambda e: my_canvas.configure(scrollregion=my_canvas.bbox("all")))
+        my_canvas.bind('<Configure>', lambda e: my_canvas.itemconfig(canvasFrame, width=e.width))
 
-        my_canvas.create_window((0, 0), window=second_frame, anchor="nw")
         return second_frame
 
     def conf(self, e):
@@ -436,7 +440,7 @@ class App(Component):
     def build_notebook(self, parent):
         self.notebook = ttk.Notebook(parent)
         # self.body.bind("<Configure>", self.conf)
-        self.notebook.pack(fill="both", expand=1) 
+        self.notebook.pack(fill="both", expand=True) 
         self.sections = {}
         sections = getattr(self.source, "sections")._dict_()
         for section in sections:
@@ -544,7 +548,7 @@ class App(Component):
         filemenu.add_command(label="Save options", command=self.save)
         filemenu.add_separator()
         filemenu.add_command(label="Exit", command=parent.destroy) #TODO: This may not work for non root parents
-        menubar.add_cascade(label="File", menu=filemenu)
+        menubar.add_cascade(label="File", menu=filemenu, underline=0)
     
         parent.config(menu=menubar)
 
@@ -787,13 +791,14 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.DEBUG)
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--program", default="./configure")
-    parser.add_argument("--config", default="./config.json")
-    parser.add_argument("--load", action="store_true", default=False)
+    default = "(default: %(default)s)"
+    parser.add_argument("-s", "--script-file", default="./configure", help=f"script to add args to {default}")
+    parser.add_argument("-c", "--config", default="./config.json", help=f"json file with gui options and settings {default}")
+    parser.add_argument("-b", "--build", action="store_true", default=False, help=f"guess the parameter choices from the scripts help output {default}")
     args = parser.parse_args()
-
-    if args.load:
-        write_help(args.program)
+    
+    if args.build:
+        write_help(args.script_file)
         load()
     
     config_file = args.config
@@ -802,7 +807,7 @@ if __name__ == "__main__":
             "name" : "Trick Setup",
             "sections" : {}
         }
-    a = App(config_file, args.program)
+    a = App(config_file, args.script_file)
     a.get_frame().mainloop()
 
 
