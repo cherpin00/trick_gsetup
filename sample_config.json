@@ -1,0 +1,334 @@
+{
+    "sections": {
+        "Configuration:": {
+            "options": {
+                "config-cache": {
+                    "desc": "alias for `--cache-file=config.cache'",
+                    "type": "flag",
+                    "value": "no"
+                },
+                "help": {
+                    "desc": "display this help and exit",
+                    "type": "flag",
+                    "value": "yes"
+                },
+                "no-create": {
+                    "desc": "do not create output files",
+                    "type": "flag",
+                    "value": "no"
+                },
+                "quiet,": {
+                    "desc": "--silent   do not print `checking ...' messages",
+                    "type": "flag",
+                    "value": "no"
+                },
+                "srcdir": {
+                    "desc": "find the sources in DIR [configure dir or `..']",
+                    "type": "dir",
+                    "value": ""
+                },
+                "version": {
+                    "desc": "display version information and exit",
+                    "type": "flag",
+                    "value": "no"
+                }
+            }
+        },
+        "Fine tuning of the installation directories:": {
+            "options": {
+                "bindir": {
+                    "desc": "user executables [EPREFIX/bin]",
+                    "type": "dir",
+                    "value": ""
+                },
+                "datadir": {
+                    "desc": "read-only architecture-independent data [DATAROOTDIR]",
+                    "type": "dir",
+                    "value": ""
+                },
+                "datarootdir": {
+                    "desc": "read-only arch.-independent data root [PREFIX/share]",
+                    "type": "dir",
+                    "value": ""
+                },
+                "docdir": {
+                    "desc": "documentation root [DATAROOTDIR/doc/trick]",
+                    "type": "dir",
+                    "value": ""
+                },
+                "dvidir": {
+                    "desc": "dvi documentation [DOCDIR]",
+                    "type": "dir",
+                    "value": ""
+                },
+                "htmldir": {
+                    "desc": "html documentation [DOCDIR]",
+                    "type": "dir",
+                    "value": ""
+                },
+                "includedir": {
+                    "desc": "C header files [PREFIX/include]",
+                    "type": "dir",
+                    "value": ""
+                },
+                "infodir": {
+                    "desc": "info documentation [DATAROOTDIR/info]",
+                    "type": "dir",
+                    "value": ""
+                },
+                "libdir": {
+                    "desc": "object code libraries [EPREFIX/lib]",
+                    "type": "dir",
+                    "value": ""
+                },
+                "libexecdir": {
+                    "desc": "program executables [EPREFIX/libexec]",
+                    "type": "dir",
+                    "value": ""
+                },
+                "localedir": {
+                    "desc": "locale-dependent data [DATAROOTDIR/locale]",
+                    "type": "dir",
+                    "value": ""
+                },
+                "localstatedir": {
+                    "desc": "modifiable single-machine data [PREFIX/var]",
+                    "type": "dir",
+                    "value": ""
+                },
+                "mandir": {
+                    "desc": "man documentation [DATAROOTDIR/man]",
+                    "type": "dir",
+                    "value": ""
+                },
+                "oldincludedir": {
+                    "desc": "C header files for non-gcc [/usr/include]",
+                    "type": "dir",
+                    "value": ""
+                },
+                "pdfdir": {
+                    "desc": "pdf documentation [DOCDIR]",
+                    "type": "dir",
+                    "value": ""
+                },
+                "psdir": {
+                    "desc": "ps documentation [DOCDIR]",
+                    "type": "dir",
+                    "value": ""
+                },
+                "sbindir": {
+                    "desc": "system admin executables [EPREFIX/sbin]",
+                    "type": "dir",
+                    "value": ""
+                },
+                "sharedstatedir": {
+                    "desc": "modifiable architecture-independent data [PREFIX/com]",
+                    "type": "dir",
+                    "value": ""
+                },
+                "sysconfdir": {
+                    "desc": "read-only single-machine data [PREFIX/etc]",
+                    "type": "dir",
+                    "value": ""
+                }
+            }
+        },
+        "Installation directories:": {
+            "options": {}
+        },
+        "Optional Features:": {
+            "options": {
+                "disable-FEATURE": {
+                    "desc": "do not include FEATURE (same as --enable-FEATURE=no)",
+                    "type": "flag",
+                    "value": "no"
+                },
+                "disable-option-checking": {
+                    "desc": "ignore unrecognized --enable/--with options",
+                    "type": "flag",
+                    "value": "no"
+                },
+                "enable-32bit": {
+                    "desc": "Force Trick and sims to compile 32bit",
+                    "type": "flag",
+                    "value": "no"
+                },
+                "enable-er7utils": {
+                    "desc": "use er7_utils (default is yes)",
+                    "type": "flag",
+                    "value": "no"
+                },
+                "enable-java": {
+                    "desc": "use java (default is yes)",
+                    "type": "flag",
+                    "value": "no"
+                },
+                "enable-mongoose": {
+                    "desc": "Compile Trick with webserver capabilites.",
+                    "type": "flag",
+                    "value": "no"
+                },
+                "enable-offline": {
+                    "desc": "Compile Trick in offline mode. Un-tar the",
+                    "type": "flag",
+                    "value": "no"
+                }
+            }
+        },
+        "Optional Packages:": {
+            "options": {
+                "with-bc635": {
+                    "desc": "BC635 root directory",
+                    "type": "dir",
+                    "value": ""
+                },
+                "with-dmtcp": {
+                    "desc": "DMTCP root directory",
+                    "type": "dir",
+                    "value": ""
+                },
+                "with-gsl": {
+                    "desc": "GSL root directory",
+                    "type": "dir",
+                    "value": ""
+                },
+                "with-gtest": {
+                    "desc": "GTEST root directory",
+                    "type": "dir",
+                    "value": ""
+                },
+                "with-hdf5": {
+                    "desc": "HDF5 root directory",
+                    "type": "dir",
+                    "value": ""
+                },
+                "with-llvm": {
+                    "desc": "LLVM root directory",
+                    "type": "dir",
+                    "value": ""
+                },
+                "with-python": {
+                    "desc": "python root directory",
+                    "type": "dir",
+                    "value": ""
+                },
+                "with-swig": {
+                    "desc": "path of directory containing the SWIG executable.",
+                    "type": "dir",
+                    "value": ""
+                },
+                "with-tpro": {
+                    "desc": "TPRO root directory",
+                    "type": "dir",
+                    "value": ""
+                },
+                "with-udunits": {
+                    "desc": "UDUnits root directory",
+                    "type": "dir",
+                    "value": ""
+                },
+                "with-x": {
+                    "desc": "use the X Window System",
+                    "type": "flag",
+                    "value": "no"
+                },
+                "with-zlib": {
+                    "desc": "root directory path of zlib installation [defaults to",
+                    "type": "dir",
+                    "value": ""
+                },
+                "without-PACKAGE": {
+                    "desc": "do not use PACKAGE (same as --with-PACKAGE=no)",
+                    "type": "flag",
+                    "value": "no"
+                },
+                "without-prepend-path": {
+                    "desc": "do not prepend to path (this is default)",
+                    "type": "flag",
+                    "value": "no"
+                },
+                "without-zlib": {
+                    "desc": "to disable zlib usage completely",
+                    "type": "flag",
+                    "value": "no"
+                }
+            }
+        },
+        "Some influential environment variables:": {
+            "options": {
+                "CC": {
+                    "desc": "C compiler command",
+                    "type": "envvar",
+                    "value": ""
+                },
+                "CFLAGS": {
+                    "desc": "C compiler flags",
+                    "type": "envvar",
+                    "value": ""
+                },
+                "CPP": {
+                    "desc": "C preprocessor",
+                    "type": "envvar",
+                    "value": ""
+                },
+                "CPPFLAGS": {
+                    "desc": "(Objective) C/C++ preprocessor flags, e.g. -I<include dir> if you have headers in a nonstandard directory <include dir>",
+                    "type": "envvar",
+                    "value": ""
+                },
+                "CXX": {
+                    "desc": "C++ compiler command",
+                    "type": "envvar",
+                    "value": ""
+                },
+                "CXXCPP": {
+                    "desc": "C++ preprocessor",
+                    "type": "envvar",
+                    "value": ""
+                },
+                "CXXFLAGS": {
+                    "desc": "C++ compiler flags",
+                    "type": "envvar",
+                    "value": ""
+                },
+                "JAVA_CC": {
+                    "desc": "java compiler command",
+                    "type": "envvar",
+                    "value": ""
+                },
+                "JAVA_CC_FLAGS": {
+                    "desc": "java compiler flags",
+                    "type": "envvar",
+                    "value": ""
+                },
+                "LDFLAGS": {
+                    "desc": "linker flags, e.g. -L<lib dir> if you have libraries in a nonstandard directory <lib dir>",
+                    "type": "envvar",
+                    "value": ""
+                },
+                "LIBS": {
+                    "desc": "libraries to pass to the linker, e.g. -l<library>",
+                    "type": "envvar",
+                    "value": ""
+                }
+            }
+        },
+        "System types:": {
+            "options": {}
+        },
+        "X features:": {
+            "options": {
+                "x-includes": {
+                    "desc": "X include files are in DIR",
+                    "type": "dir",
+                    "value": ""
+                },
+                "x-libraries": {
+                    "desc": "X library files are in DIR",
+                    "type": "dir",
+                    "value": ""
+                }
+            }
+        }
+    }
+}
