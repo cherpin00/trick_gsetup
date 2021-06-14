@@ -1,4 +1,5 @@
 import pytest
+import os
 import tkinter as tk
 from tkinter.constants import END
 from main import Data, OptionDir, OptionBool, Section, App
@@ -212,7 +213,8 @@ def test_app():
     assert a.data._dict_() == my_json
 
 def test_app_with_file():
-    a = App("config_for_test_app_with_file.json")
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    a = App(f"{dir_path}/config_for_test_app_with_file.json")
     for key, value in a.sections.items():
         for option, obj, in value.components.items():
             if obj.type == "dir":

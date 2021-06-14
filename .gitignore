@@ -1,4 +1,4 @@
-__pycache__/*
+*__pycache__*
 .vscode/*
 config.log
 config.status
@@ -7,3 +7,6 @@ share/trick/makefiles/config_user.mk
 build/*
 main
 main.spec
+check_env.py
+*practice*
+*.cache

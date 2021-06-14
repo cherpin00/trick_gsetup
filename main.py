@@ -113,6 +113,14 @@ def run(program, *args, **kargs):
     process = subprocess.run(program.split(" ") + new_args, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
     return process.stdout.decode()
 
+def textEvent(e):
+    print("state", e.state)
+    print("key", e.keysym)
+    if (e.state == 20 and e.keysym == "c"): #TODO: Add other exceptions like Ctrl+a
+        return
+    else:
+        return "break"
+
 #Adapted from https://stackoverflow.com/questions/4770993/how-can-i-make-silent-exceptions-louder-in-tkinter
 class Stderr(object):
     def __init__(self, parent):
@@ -469,7 +477,7 @@ class App(Component):
         return second_frame
     def setIsInCanvas(self, value):
         self.isInCanvas = value
-        
+
     def conf(self, e):
             self.body.update()
             height = self.body.winfo_height()
@@ -523,11 +531,21 @@ class App(Component):
         self.label_frame = LabelFrame(self.current_script, text="Current Script with Options", underline=21)
         self.label_frame.pack(side="top", expand=True, fill="x")
 
-        self.current_command = ScrolledText(self.label_frame, height=3)
-        def do_nothing(e):
-            pass
-        self.current_command.bind("<KeyPress>", do_nothing)
+        # self.win = tk.Toplevel()
+        # self.win.title("General help for the configure script")
+        # self.win.geometry("800x500")
+        # output = run(self.program, "help")
+        # self.output = ScrolledText(self.win, state="normal", height=8, width=50)
+        # self.output.insert(1.0, output)
+        # self.output["state"] = "disabled"
+        # self.pack(self.output, fill="both", expand=True, anchor="w")
+        self.current_command = ScrolledText(self.label_frame, height=8, state="normal")
+        self.current_command.bind("<Key>", textEvent)
+        self.current_command.bind("<Enter>", lambda e: self.setIsInCurrentCommand(True))
+        self.current_command.bind("<Leave>", lambda e: self.setIsInCurrentCommand(False))
         self.current_command.pack(side="top", anchor="w", fill="x", expand=True)
+
+        self.setIsInCurrentCommand(False)
 
         self.root.bind("<KeyRelease>", self.build_current_command)
         self.root.bind("<ButtonRelease-1>", self.build_current_command)
@@ -550,6 +568,9 @@ class App(Component):
         CreateToolTip(self.done_button, "Execute command with options")
         self.done_button.pack(side="right", anchor="e", expand=True, fill="both", padx=5)
     
+    def setIsInCurrentCommand(self, value):
+        self.isInCurrentCommand = value
+
     def update_status(self):
         self.label_status["text"], self.label_status["foreground"] = self.get_status()
 
@@ -564,21 +585,22 @@ class App(Component):
             color = "red"
         return rvalue + " Executable File", color
 
-    def show_help(self):
+    def show_help(self): #TODO: This code is being repeated where we a ScrolledText widget
         self.win = tk.Toplevel()
         self.win.title("General help for the configure script")
         self.win.geometry("800x500")
         output = run(self.program, "help")
         self.output = ScrolledText(self.win, state="normal", height=8, width=50)
+        self.output.bind("<Key>", textEvent)
         self.output.insert(1.0, output)
-        self.output["state"] = "disabled"
         self.pack(self.output, fill="both", expand=True, anchor="w")
 
     def build_current_command(self, e=None):
         # self.current_command["state"] = "normal"
-        text = get_configure_command(self.program, self.source._dict_(), include_vars=True)
-        self.current_command.delete(1.0, "end")
-        self.current_command.insert(1.0, text)
+        if not self.isInCurrentCommand:
+            text = get_configure_command(self.program, self.source._dict_(), include_vars=True)
+            self.current_command.delete(1.0, "end")
+            self.current_command.insert(1.0, text)
         # self.current_command["state"] = "disabled"
         # self.current_command["text"] = text
 
@@ -662,8 +684,8 @@ class App(Component):
             self.win.title("Script's output")
             self.win.geometry("800x500")
             self.output = ScrolledText(self.win, state="normal", height=8, width=50)
+            self.output.bind("<Key>", textEvent)
             self.output.insert(1.0, output)
-            self.output["state"] = "disabled"
             self.output.pack(fill="both", expand=True, anchor="w")
             self.finish_button = Button(self.win, text="Finished", command=quit)
             self.finish_button.pack(anchor="e")
