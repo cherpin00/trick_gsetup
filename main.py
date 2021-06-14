@@ -3,7 +3,7 @@ import tkinter
 # import ttkthemes
 
 import tkinter as tk
-from tkinter import Tk, ttk
+from tkinter import StringVar, Tk, ttk
 #from ttkthemes import ThemedTk
 from tkinter import BooleanVar, Toplevel, Text, Menu, Canvas
 from tkinter.constants import SUNKEN
@@ -19,6 +19,11 @@ from tkinter.scrolledtext import ScrolledText
 import traceback
 import os
 import argparse
+import shutil
+import time
+import errno
+import ntpath
+
 # from idlelib.ToolTip import *
 
 
@@ -43,18 +48,24 @@ def QuoteForPOSIX(string): #Adapted from https://code.activestate.com/recipes/49
     return "\\'".join("'" + p + "'" for p in string.split("'"))
 
 def get_configure_command(command, config_json, include_vars=False):
+    def get_with_catch(my_dict, key):
+        try:
+            return my_dict[key]
+        except KeyError as e:
+            raise RuntimeError(f"Required key {e} not found in the following json: {my_dict}")
+
     sep = " "
     vars = ""
-    for section_name, section in config_json["sections"].items():
-        for option_name, option in section["options"].items():
-            if option["type"] in ("bool", "flag"):
-                value = bool_to_string(string_to_bool(str(option["value"])))
-            elif option["type"] in ("dir"):
-                value = str(option["value"])
+    for section_name, section in get_with_catch(config_json, "sections").items():
+        for option_name, option in get_with_catch(section, "options").items():
+            if get_with_catch(option, "type") in ("bool", "flag"):
+                value = bool_to_string(string_to_bool(str(get_with_catch(option, "value"))))
+            elif get_with_catch(option, "type") in ("dir"):
+                value = str(get_with_catch(option, "value"))
                 if value == "":
                     continue
-            elif option["type"] == "envvar":
-                value = str(option["value"])
+            elif get_with_catch(option, "type") == "envvar":
+                value = str(get_with_catch(option, "value"))
                 if value == "":
                     if option_name in os.environ:
                         del os.environ[option_name]
@@ -63,6 +74,9 @@ def get_configure_command(command, config_json, include_vars=False):
                     if include_vars:
                         vars += f"{option_name} = {value}\n"
                 continue
+            else:
+                my_type = get_with_catch(option, "type")
+                raise RuntimeError(f"Option type '{my_type}' in {option} is not implemented yet.")
             if value not in ("no"): #TODO: Check what possible values there are for false
                 #TODO: Should we add the no's to the comand
                 command += f"{sep}--{option_name}"
@@ -86,12 +100,15 @@ def bool_to_string(bool):
         return "no"
 
 def run(program, *args, **kargs):
+    time = kargs.get("time", False)
     new_args = []
     for key in kargs:
         value = kargs[key]
         new_args.append(f"--{key}={value}")
     for value in args:
         new_args.append(f"--{value}")
+    if time:
+        program = "time " + program
     logging.info("Running: " + str(program.split(" ") + new_args))
     process = subprocess.run(program.split(" ") + new_args, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
     return process.stdout.decode()
@@ -245,7 +262,7 @@ class OptionDir(Option):
         self.pack(self.directory_entry, side="left", fill="both", expand=True)
         self.browse_button = Button(self.container, text="browse", command=self.browse_dir)
         self.pack(self.browse_button, side="right")
-        CreateToolTip(self.browse_button, "Browser for a directory.")
+        CreateToolTip(self.browse_button, "Browse for a directory.")
         # self.desc_label = Label(self.container, text = self.desc, font=("", 8)) #TODO: Make a hover-over pop up
         # CreateToolTip(self.desc_label, self.desc)
         # self.pack(self.desc_label, side="left")
@@ -322,7 +339,7 @@ class Section(Component):
             parent.add(self.get_frame(), text=section)
         
         options = getattr(self.source, "options")._dict_()
-        for option in options:
+        for option in options: #TODO: Don't repeat this logic in get_configure_command
             obj = getattr(getattr(self.source, "options"), option)
             my_type = obj.type
             if my_type == "dir":
@@ -387,6 +404,11 @@ class App(Component):
         self.notebook_frame.pack(side="top", expand=True, fill='both')
         self.build_notebook(self.body)
         self.build_current_command() #We can only run this after we build a notebook
+
+        self._status = StringVar()
+        self.status_label = Label(self.footer, textvariable=self._status)
+        self.set_status()
+        self.status_label.pack(side="left")
     
     @property
     def program(self):
@@ -398,9 +420,14 @@ class App(Component):
         self.update_status()
         self.build_current_command()
     
+    def set_status(self, msg=None):
+        if msg is None:
+            msg = f"Config file: {self.filename}"
+        self._status.set("Status - " + msg)
+
     def add_shortcuts(self):
-        # self.root.bind(f"<Alt-h>", lambda e: self.show_help())
-        # self.root.bind(f"<Alt-e>", lambda e: self.execute())
+        self.root.bind(f"<Alt-h>", lambda e: self.show_help())
+        self.root.bind(f"<Alt-e>", lambda e: self.execute())
         self.root.bind(f"<Alt-o>", lambda e: self.focus_options())
         self.root.bind(f"<Alt-s>", lambda e: self.focus_search())
 
@@ -571,25 +598,30 @@ class App(Component):
     def _search(self, word, sections):
         section_id = 0
         self.current_section_length = 0
+        showing = { "sections" : {} } #This is used for testing.
         for section in sections:
             options = sections[section].components
             count_hidden = 0
+            showing["sections"][section] = {}
+            showing["sections"][section]["options"] = {}
             for option in options: #TODO: Allow for double grouping
                 if (word != '' and not App.is_match(word, option)) or (self.only_checked.get() and options[option].value in ("no", "")):
                     options[option].get_frame().pack_forget()
                     count_hidden += 1
                 else:
                     options[option].get_frame().pack(fill = options[option].fill, )
+                    showing["sections"][section]["options"][option] = self.my_json["sections"][section]["options"][option]
             if count_hidden == len(sections[section].components):
                 self.notebook.hide(section_id)
+                del showing["sections"][section]
             else:
                 if self.previous_section_length == 0:
                     self.notebook.select(0)
                 self.notebook.add(sections[section].get_frame(), text=section)
                 self.current_section_length += 1
-                pass
             section_id += 1
         self.previous_section_length = self.current_section_length
+        return showing
     
     @staticmethod
     def is_match(search, book):
@@ -599,6 +631,7 @@ class App(Component):
         return self.root
     
     def execute(self, source=None, autoRun=False):
+        self.set_status("Running script")
         if source == None:
             cmd = get_configure_command(self.program, self.source._dict_())
         else:
@@ -607,10 +640,10 @@ class App(Component):
         answer = messagebox.askyesno(title="Confirmation", message=f"Are you sure that you want to run the following command:\n{cmd}")
         if answer:
             output = run(cmd)
+            self.win = tk.Tk()
             def quit():
                 self.win.destroy()
                 self.root.destroy()
-            self.win = tk.Tk()
             self.win.title("Script's output")
             self.win.geometry("800x500")
             self.output = ScrolledText(self.win, state="normal", height=8, width=50)
@@ -621,9 +654,11 @@ class App(Component):
             self.finish_button.pack(anchor="e")
             # self.root.destroy() #TODO: Check for a successfull output.
             self.save()
+            # self.set_status()
             self.win.mainloop()
-        
         # self.save()
+        else:
+            self.set_status()
 
     def save(self, filename=None):
         if filename == None:
@@ -633,6 +668,13 @@ class App(Component):
                 filename = self.filename
         with open(filename, "w") as f:
             f.write(json.dumps(self.source._dict_(), indent=4)) #TODO: What happens if there is an error on this line
+            try:
+                os.makedirs("archive")
+            except OSError as exception:
+                if exception.errno != errno.EEXIST:
+                    raise
+        timestr = time.strftime("%Y%m%d-%H%M%S")
+        shutil.copyfile(filename, f"archive/{timestr}_{ntpath.basename(filename)}")
 
     
     def open(self, filename):
@@ -782,7 +824,45 @@ class CurrentBox:
         self.parent = parent
         
 
+class ChooseConfigure:
+    def __init__(self, parent=None) -> None:
+        if parent is None:
+            self.root = Tk()
+        else:
+            self.root = parent
+        
+        self.label = Label(text="Config file not found.  Please click browse to find your config file or click continue to use the default.")
+        self.label.pack()
+        
+        self.dir = ""
+        self.browse_button = Button(self.root, text="Browse", command=self.browse)
+        self.browse_button.pack()
 
+        self.continue_button = Button(self.root, text="Continue", command=self.continue_func)
+        self.continue_button.pack()
+    
+    def continue_func(self):
+        self.file = {
+            "name" : "Trick Setup",
+            "sections" : {}
+        }
+        self.root.destroy()
+
+    def get_frame(self):
+        return self.root
+    
+    def browse(self):
+        initDir=os.getcwd()
+        if not os.path.isdir(initDir):
+            messagebox.showerror("Error", f'Specified directory not found.  Value was:{"(Empty)" if initDir=="" else initDir}')
+            initDir=""
+        file = filedialog.askopenfilename(initialdir=initDir)
+        if not dir in ("", ()): #askdirectory can return an empty tuple(Escape pressed) or an empty string(Cancel pressed)
+            self.file = file
+        self.root.destroy()
+    
+    def get_file(self):
+        return self.file
 
 
 
@@ -803,10 +883,9 @@ if __name__ == "__main__":
     
     config_file = args.config
     if not os.path.isfile(config_file):
-        config_file = {
-            "name" : "Trick Setup",
-            "sections" : {}
-        }
+        c = ChooseConfigure()
+        c.get_frame().mainloop()
+        config_file = c.get_file()
     a = App(config_file, args.script_file)
     a.get_frame().mainloop()
 
