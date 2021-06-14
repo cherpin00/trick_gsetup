@@ -453,11 +453,23 @@ class App(Component):
         second_frame = Frame(my_canvas)
         canvasFrame = my_canvas.create_window((0, 0), window=second_frame, anchor="nw")
         
+        self.setIsInCanvas(False)
         second_frame.bind("<Configure>", lambda e: my_canvas.configure(scrollregion=my_canvas.bbox("all")))
         my_canvas.bind('<Configure>', lambda e: my_canvas.itemconfig(canvasFrame, width=e.width))
+        def _scroll(e, dir):
+            if self.isInCanvas:
+                speed = 1
+                my_canvas.yview_scroll(dir * speed, "units")
+
+        self.root.bind_all('<Button-4>', lambda e: _scroll(e, -1))
+        self.root.bind_all('<Button-5>', lambda e: _scroll(e, 1))
+        my_canvas.bind('<Enter>', lambda e: self.setIsInCanvas(True))
+        my_canvas.bind('<Leave>', lambda e: self.setIsInCanvas(False))
 
         return second_frame
-
+    def setIsInCanvas(self, value):
+        self.isInCanvas = value
+        
     def conf(self, e):
             self.body.update()
             height = self.body.winfo_height()
@@ -511,7 +523,10 @@ class App(Component):
         self.label_frame = LabelFrame(self.current_script, text="Current Script with Options", underline=21)
         self.label_frame.pack(side="top", expand=True, fill="x")
 
-        self.current_command = ScrolledText(self.label_frame, height=3, borderwidth=0)
+        self.current_command = ScrolledText(self.label_frame, height=3)
+        def do_nothing(e):
+            pass
+        self.current_command.bind("<KeyPress>", do_nothing)
         self.current_command.pack(side="top", anchor="w", fill="x", expand=True)
 
         self.root.bind("<KeyRelease>", self.build_current_command)
@@ -560,11 +575,11 @@ class App(Component):
         self.pack(self.output, fill="both", expand=True, anchor="w")
 
     def build_current_command(self, e=None):
-        self.current_command["state"] = "normal"
+        # self.current_command["state"] = "normal"
         text = get_configure_command(self.program, self.source._dict_(), include_vars=True)
         self.current_command.delete(1.0, "end")
         self.current_command.insert(1.0, text)
-        self.current_command["state"] = "disabled"
+        # self.current_command["state"] = "disabled"
         # self.current_command["text"] = text
 
     def build_menu(self, parent):
