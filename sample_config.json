@@ -5,7 +5,7 @@
                 "config-cache": {
                     "desc": "alias for `--cache-file=config.cache'",
                     "type": "flag",
-                    "value": "no"
+                    "value": "yes"
                 },
                 "help": {
                     "desc": "display this help and exit",
@@ -15,7 +15,7 @@
                 "no-create": {
                     "desc": "do not create output files",
                     "type": "flag",
-                    "value": "no"
+                    "value": "yes"
                 },
                 "quiet,": {
                     "desc": "--silent   do not print `checking ...' messages",
@@ -264,7 +264,7 @@
                 "CFLAGS": {
                     "desc": "C compiler flags",
                     "type": "envvar",
-                    "value": ""
+                    "value": "kokiii"
                 },
                 "CPP": {
                     "desc": "C preprocessor",

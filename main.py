@@ -1,4 +1,5 @@
 # import PIL
+from posixpath import curdir
 import tkinter
 # import ttkthemes
 
@@ -6,7 +7,7 @@ import tkinter as tk
 from tkinter import StringVar, Tk, ttk
 #from ttkthemes import ThemedTk
 from tkinter import BooleanVar, Toplevel, Text, Menu, Canvas
-from tkinter.constants import SUNKEN
+from tkinter.constants import NONE, SUNKEN
 from tkinter.ttk import Frame, Button, Entry, Label, Checkbutton, LabelFrame, Scrollbar
 from tkinter import ttk
 import json
@@ -23,6 +24,7 @@ import shutil
 import time
 import errno
 import ntpath
+import glob
 
 # from idlelib.ToolTip import *
 
@@ -303,9 +305,9 @@ class OptionBool(Option):
         self.bool = BooleanVar(value = self.value)
         self.check_button = Checkbutton(self.get_frame(), text=self.label, command=self.handler, variable=self.bool)
         self.pack(self.check_button, side="left")
-        self.desc_label = Label(self.get_frame(), text = self.desc) #TODO: Make a pop up
-        self.pack(self.desc_label, side="left")
-        CreateToolTip(self.desc_label, self.desc)
+        # self.desc_label = Label(self.get_frame(), text = self.desc) #TODO: Make a pop up
+        # self.pack(self.desc_label, side="left")
+        CreateToolTip(self.check_button, self.desc)
     
     def handler(self):
         logging.debug(f"Setting value to {self.bool.get()}.")
@@ -564,7 +566,7 @@ class App(Component):
         self.help_button.pack(side="left", anchor="w", expand=True, fill="both", padx=10)
 
 
-        self.done_button = Button(self.button_frame, text="Execute command with options", command=self.execute, underline=0)
+        self.done_button = Button(self.button_frame, text="Execute command with options (will remember settings)", command=self.execute, underline=0)
         CreateToolTip(self.done_button, "Execute command with options")
         self.done_button.pack(side="right", anchor="e", expand=True, fill="both", padx=5)
     
@@ -667,14 +669,16 @@ class App(Component):
     def get_frame(self):
         return self.root
     
-    def execute(self, source=None, autoRun=False):
+    def execute(self, source=None, autoRun=False, parent=None, answer=None):
         self.set_status("Running script")
         if source == None:
             cmd = get_configure_command(self.program, self.source._dict_())
         else:
             cmd = get_configure_command(self.program, source._dict_())
         # RunCommand(self, cmd, autoRun=autoRun)
-        answer = messagebox.askyesno(title="Confirmation", message=f"Are you sure that you want to run the following command:\n{cmd}")
+        if not answer:
+            answer = messagebox.askyesno(title="Confirmation", message=f"Would you like to configure trick with your chosen options?")
+            
         if answer:
             output = run(cmd)
             self.win = tk.Tk()
@@ -893,7 +897,7 @@ class ChooseConfigure:
         if not os.path.isdir(initDir):
             messagebox.showerror("Error", f'Specified directory not found.  Value was:{"(Empty)" if initDir=="" else initDir}')
             initDir=""
-        file = filedialog.askopenfilename(initialdir=initDir)
+        file = filedialog.askopenfilename(initialdir=initDir) #TODO: Fix this logic
         if not dir in ("", ()): #askdirectory can return an empty tuple(Escape pressed) or an empty string(Cancel pressed)
             self.file = file
         self.root.destroy()
@@ -901,7 +905,120 @@ class ChooseConfigure:
     def get_file(self):
         return self.file
 
+def execute(parent, source, program, autoRun=False, answer=None):
+        cmd = get_configure_command(program, source._dict_())
+        # RunCommand(self, cmd, autoRun=autoRun)
+        if not answer:
+            answer = messagebox.askyesno(title="Confirmation", message=f"Are you sure that you want to run the following command:\n{cmd}")
+            
+        if answer:
+            output_txt = run(cmd)
+            win = tk.Tk()
+            def quit():
+                win.destroy()
+                if parent:
+                    parent.destroy()
+            win.title("Script's output")
+            win.geometry("800x500")
+            output = ScrolledText(win, state="normal", height=8, width=50)
+            output.bind("<Key>", textEvent)
+            output.insert(1.0, output_txt)
+            output.pack(fill="both", expand=True, anchor="w")
+            finish_button = Button(win, text="Finished", command=quit)
+            finish_button.pack(anchor="e")
+            # self.save()
+            win.mainloop()
 
+class LandingPage:
+    def __init__(self, parent=None, config_file="./config.json") -> None:
+        if parent:
+            self.root = parent
+        else:
+            self.root = Tk()
+        self.root.title("Configure trick")
+        self.config_file = os.path.abspath(config_file)
+        
+        self.open_advanced = False
+        self.to_close = True
+
+        self.header = Frame(self.root)
+        self.body = Frame(self.root)
+        self.footer = Frame(self.root)
+
+        self.header.pack()
+        self.body.pack()
+        self.footer.pack()
+
+        self.release_label = Label(self.header, text="Release x.x")
+        self.release_label.pack(anchor="w")
+        self.desc_label = Label(self.header, text="Welcome to Trick.", font='Helvetica 15 bold')
+        self.desc_label.pack()
+        self.desc_label2 = Label(self.header, wraplength=500, text="This setup guide will allow you to easily see all the options that are available to configure Trick with.")
+        self.desc_label2.pack(pady=10)
+
+        self.label = Label(self.body, text="Location:")
+        self.label.pack(anchor="w")
+
+        self.folder_location = StringVar(value=os.getcwd())
+        self.folder_entry = Entry(self.body, textvariable=self.folder_location)
+        self.folder_entry.pack(side="left")
+
+        self.change_button = Button(self.body, text="Change", command=self.change_dir)
+        CreateToolTip(self.change_button, "Click here to choose Trick's home directory.  Configure will run from within this directory.")
+        self.change_button.pack(side="left", pady=10, padx=10)
+
+        self.configure_fast_button = Button(self.footer, text="Configure with defaults", command=self.configure)
+        CreateToolTip(self.configure_fast_button, "Run configure with the default options.")
+        self.configure_fast_button.pack(side="left", padx=10, pady=10)
+
+        self.configure_button = Button(self.footer, text="Configure with advanced options", command=self.configure_with_options)
+        CreateToolTip(self.configure_button, "Choose advanced options to configure trick with.")
+        self.configure_button.pack(side="left", padx=10, pady=10)
+        
+        self.close_button = Button(self.footer, text="Close", command=self.close)
+        self.close_button.pack(side="left", padx=10, pady=10)
+
+    def change_dir(self):
+        dir = filedialog.askdirectory(initialdir=self.folder_location.get())
+        if not dir in ("", ()):
+            self.folder_location.set(dir)
+        else:
+            logging.error("Invalid directory.")
+    
+    def set_program(self):
+        currdir = os.path.abspath(os.getcwd())
+        try:
+            os.chdir(self.folder_location.get())
+        except:
+            messagebox.showerror(title="Invalid directory", message=f"{self.folder_location.get()} is not a valid directory")
+            return False
+        arr = glob.glob("configure")
+        if len(arr) > 0:
+            self.program = os.path.abspath(arr[0])
+            return True
+        else:
+            os.chdir(curdir)
+            messagebox.showerror(title="Wrong home directory", message=f"No configure file found in location: {self.folder_location.get()}.  Please enter your trick home directory.")
+            return False
+
+    def configure(self):
+        if self.set_program():
+            self.open_advanced = False
+            self.to_close = False
+            self.close()
+    
+    def close(self):
+        self.root.destroy()
+
+    def configure_with_options(self):
+            if self.set_program():
+                self.open_advanced = True
+                self.to_close = False
+                self.close()
+    def get_frame(self):
+        return self.root
+        
+        
 
 from load import load, write_help
 if __name__ == "__main__":
@@ -910,7 +1027,8 @@ if __name__ == "__main__":
 
     default = "(default: %(default)s)"
     parser.add_argument("-s", "--script-file", default="./configure", help=f"script to add args to {default}")
-    parser.add_argument("-c", "--config", default="./config.json", help=f"json file with gui options and settings {default}")
+    # parser.add_argument("-c", "--config", default="./config.json", help=f"json file with gui options and settings {default}")
+    parser.add_argument("-c", "--config", default=f"{os.path.dirname(os.path.realpath(__file__))}/sample_config.json", help=f"json file with gui options and settings {default}")
     parser.add_argument("-b", "--build", action="store_true", default=False, help=f"guess the parameter choices from the scripts help output {default}")
     args = parser.parse_args()
     
@@ -923,7 +1041,14 @@ if __name__ == "__main__":
         c = ChooseConfigure()
         c.get_frame().mainloop()
         config_file = c.get_file()
-    a = App(config_file, args.script_file)
-    a.get_frame().mainloop()
+    config_file = os.path.abspath(config_file) #Landing page will change cwd so we get abs path
+    l = LandingPage(parent=None, config_file=config_file)
+    l.get_frame().mainloop()
+    if not l.to_close:
+        if l.open_advanced:
+            a = App(config_file, l.program)
+            a.get_frame().mainloop()
+        else:
+            execute(None, Data(sections=Data()), l.program, autoRun=True, answer=True)
 
 
