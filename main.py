@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 # import PIL
 from posixpath import curdir
 import tkinter
@@ -663,8 +664,13 @@ class App(Component):
         return showing
     
     @staticmethod
-    def is_match(search, book):
-        return search.lower() in book
+    def is_match(search, *args): #Pass in args to see if search is a match with any of the arguments
+        rvalue = False
+        for a in args:
+            if search.lower() in a.lower():
+                rvalue = True
+        return rvalue
+
 
     def get_frame(self):
         return self.root
@@ -930,7 +936,7 @@ def execute(parent, source, program, autoRun=False, answer=None):
             win.mainloop()
 
 class LandingPage:
-    def __init__(self, parent=None, config_file="./config.json") -> None:
+    def __init__(self, parent=None, config_file="./config.json", initial_dir=os.getcwd()) -> None:
         if parent:
             self.root = parent
         else:
@@ -959,7 +965,7 @@ class LandingPage:
         self.label = Label(self.body, text="Location:")
         self.label.pack(anchor="w")
 
-        self.folder_location = StringVar(value=os.getcwd())
+        self.folder_location = StringVar(value=initial_dir)
         self.folder_entry = Entry(self.body, textvariable=self.folder_location)
         self.folder_entry.pack(side="left")
 
@@ -1042,7 +1048,11 @@ if __name__ == "__main__":
         c.get_frame().mainloop()
         config_file = c.get_file()
     config_file = os.path.abspath(config_file) #Landing page will change cwd so we get abs path
-    l = LandingPage(parent=None, config_file=config_file)
+    if os.path.exists(args.script_file):
+        script_folder = os.path.dirname(os.path.abspath(args.script_file))
+    else:
+        script_folder = os.getcwd()
+    l = LandingPage(parent=None, config_file=config_file, initial_dir=script_folder)
     l.get_frame().mainloop()
     if not l.to_close:
         if l.open_advanced:
