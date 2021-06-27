@@ -1,10 +1,13 @@
 {
+    "landing" : {
+        "version" : "x.x",
+        "desc" : "This setup guide will allow you to easily see all the options that are available to configure Trick with."
+    },
     "sections": {
         "Configuration:": {
             "options": {
                 "config-cache": {
                     "desc": "alias for `--cache-file=config.cache'",
-                    "label": "A config cache",
                     "type": "flag",
                     "value": "no"
                 },

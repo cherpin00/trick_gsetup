@@ -388,7 +388,7 @@ class App(Component):
         # self.root.set_theme("plastik")
         self.root.geometry("1050x800") #TODO: Set geometry based on width of notebook
 
-        super().__init__(self.root, "app", self.data, special_required_params=["sections"], special_valid_params=["sections", "name"])
+        super().__init__(self.root, "app", self.data, special_required_params=["sections"], special_valid_params=["sections", "name", "landing"])
         
         self.name = "app" if self.name == "default" else self.name
 
@@ -410,6 +410,7 @@ class App(Component):
         self.add_shortcuts()
         self.build_menu(self.root)
         self.build_search_bar(self.header)
+        self.build_current_script(self.footer)
         
         self.notebook_frame = Frame(self.body)
         self.notebook_frame.pack(side="top", expand=True, fill='both')
@@ -504,32 +505,34 @@ class App(Component):
         #Search box
         # SearchBox(self).get_frame().pack(anchor="e")
         self.outer_search_box = LabelFrame(parent, text="Filter Options")
-        self.outer_search_box.pack(side="right", anchor="n", fill="x")
+        self.outer_search_box.pack(side="right", anchor="n", fill="x", expand=1)
 
         self.search_box = Frame(self.outer_search_box)
         self.search_box.rowconfigure(0, weight=1)
         self.search_box.columnconfigure(0, weight=1)
- 
+
+        self.search_label = Label(self.search_box, text = "Search for options:", underline=0)
+        # self.search_label.grid(row=0, column=0, sticky="ew")
+        self.search_label.pack(expand=True, fill="x")
+
         self.search_entry = Entry(self.search_box)
         self.search_entry.bind("<KeyRelease>", self.call_search)
         CreateToolTip(self.search_entry, "Search for a specific option.")
-        self.search_entry.grid(row=0, column=1, sticky="e")
+        # self.search_entry.grid(row=0, column=1, sticky="ew")
+        self.search_entry.pack(expand=True, fill="x")
 
-        self.search_label = Label(self.search_box, text = "Search for options:", underline=0)
-        self.search_label.grid(row=0, column=0, sticky="e")
-
-        self.pack(self.search_box, side="top", anchor="e", expand=False, fill="x")
+        self.pack(self.search_box, side="top", anchor="e", expand=True, fill="x")
 
         self.only_checked = BooleanVar(False)
         self.checked_toggle = Checkbutton(self.outer_search_box, variable=self.only_checked, text="Show only used options", command=self.call_search)
-        self.checked_toggle.pack(side="right", anchor="e", expand=False, fill="x")
+        self.checked_toggle.pack(side="right", anchor="e", expand=True, fill="x")
 
         #End Search box
-        
 
+    def build_current_script(self, parent):
         #Current Script
         self.current_script = Frame(parent)
-        self.current_script.pack(side="left", anchor="n", fill="x", expand=True)
+        self.current_script.pack(side="top", anchor="n", fill="x", expand=True)
 
         self.label_frame = LabelFrame(self.current_script, text="Current Script with Options", underline=21)
         self.label_frame.pack(side="top", expand=True, fill="x")
@@ -935,13 +938,26 @@ def execute(parent, source, program, autoRun=False, answer=None):
             # self.save()
             win.mainloop()
 
-class LandingPage:
+class LandingPage(Component):
     def __init__(self, parent=None, config_file="./config.json", initial_dir=os.getcwd()) -> None:
         if parent:
             self.root = parent
         else:
             self.root = Tk()
-        self.root.title("Configure trick")
+
+        with open(config_file, "r") as f:
+                new_json = json.load(f)
+                self.data = Data(**(new_json.get("landing", {})))
+                self.my_json = new_json
+
+        super().__init__(parent, "landing", self.data, special_valid_params=["version", "desc", "title"], special_required_params=[]) #Note: there should be no required params for Landing because landing itself is not required
+
+        #Set default values
+        self.version = "x.x" if self.version == "default" else self.version 
+        self.desc = "This setup guide will allow you to easily see all the options that are available to configure Trick with." if self.desc == "default" else self.desc
+        self.title = "Configure trick" if self.title == "default" else self.title
+
+        self.root.title(self.title)
         self.config_file = os.path.abspath(config_file)
         
         self.open_advanced = False
@@ -955,11 +971,11 @@ class LandingPage:
         self.body.pack()
         self.footer.pack()
 
-        self.release_label = Label(self.header, text="Release x.x")
+        self.release_label = Label(self.header, text=f"Release {self.version}")
         self.release_label.pack(anchor="w")
         self.desc_label = Label(self.header, text="Welcome to Trick.", font='Helvetica 15 bold')
         self.desc_label.pack()
-        self.desc_label2 = Label(self.header, wraplength=500, text="This setup guide will allow you to easily see all the options that are available to configure Trick with.")
+        self.desc_label2 = Label(self.header, wraplength=500, text=self.desc)
         self.desc_label2.pack(pady=10)
 
         self.label = Label(self.body, text="Location:")
