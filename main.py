@@ -135,8 +135,16 @@ class Stderr(object):
         return 2
 
 class Data:
+    def __create_attribute_list(self):
+        try:
+            self._attrs_
+        except:
+            dict.__setattr__(self, "_attrs_", []) #We use this list to perserve order
+
     def __init__(self, **kargs) -> None:
+        self.__create_attribute_list()
         for key, value in kargs.items():
+            self._attrs_.append(key)
             if type(value) != dict:
                 setattr(self, key, value)
             else:
@@ -144,7 +152,8 @@ class Data:
     
     def _dict_(self):
         d = {}
-        for attribute in dir(self):
+        for attribute in self._attrs_:
+        # for attribute in dir(self):
             if not attribute.startswith("_"):
                 var = getattr(self, attribute)
                 if type(var) == Data:
@@ -152,6 +161,12 @@ class Data:
                 else:
                     d[attribute] = var
         return d
+    
+    def __setattr__(self, name: str, value) -> None:
+        self.__create_attribute_list()
+        self._attrs_.append(name)
+        dict.__setattr__(self, name, value)
+        
 
 class Component:
     def __init__(self, parent, name, source:Data, special_valid_params, special_required_params) -> None:
@@ -306,9 +321,9 @@ class OptionBool(Option):
         self.bool = BooleanVar(value = self.value)
         self.check_button = Checkbutton(self.get_frame(), text=self.label, command=self.handler, variable=self.bool)
         self.pack(self.check_button, side="left")
-        # self.desc_label = Label(self.get_frame(), text = self.desc) #TODO: Make a pop up
-        # self.pack(self.desc_label, side="left")
-        CreateToolTip(self.check_button, self.desc)
+        self.desc_label = Label(self.get_frame(), text = f": {self.desc}") #TODO: Make a pop up
+        self.pack(self.desc_label, side="left")
+        # CreateToolTip(self.check_button, self.desc)
     
     def handler(self):
         logging.debug(f"Setting value to {self.bool.get()}.")
@@ -1076,5 +1091,3 @@ if __name__ == "__main__":
             a.get_frame().mainloop()
         else:
             execute(None, Data(sections=Data()), l.program, autoRun=True, answer=True)
-
-
