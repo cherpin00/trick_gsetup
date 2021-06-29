@@ -663,7 +663,7 @@ class App(Component):
             showing["sections"][section] = {}
             showing["sections"][section]["options"] = {}
             for option in options: #TODO: Allow for double grouping
-                if (word != '' and not App.is_match(word, option)) or (self.only_checked.get() and options[option].value in ("no", "")):
+                if (word != '' and not App.is_match(word, option, options[option].desc)) or (self.only_checked.get() and options[option].value in ("no", "")):
                     options[option].get_frame().pack_forget()
                     count_hidden += 1
                 else:
