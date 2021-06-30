@@ -998,7 +998,7 @@ class LandingPage(Component):
         self.title_frame = Frame(self.header)
         self.desc_label = Label(self.title_frame, text="Welcome to Trick.", font='Helvetica 15 bold')
         self.desc_label.pack(side="left")
-        self.img = PhotoImage(file=f'{self.resource_folder}/trick_icon.png')
+        self.img = PhotoImage(file=f'{self.resource_folder}/trick_icon.gif')
         Label(self.title_frame, image=self.img).pack(side="left")
         self.title_frame.pack()
 
