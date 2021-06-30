@@ -124,6 +124,20 @@ def textEvent(e):
     else:
         return "break"
 
+def set_widget_geometry(widget, width=None, height=None):
+    """Set the geometry of a widget. Default to half of the screen size.  If width or height is greater then the screen size will use default value for that demension"""
+    screen_width = widget.winfo_screenwidth()
+    screen_height = widget.winfo_screenheight()
+    if not (width and width <= screen_width):
+        if width:
+            logging.warning("Trying to set width larger than screen size. Defaulting to half of screen width")
+        width =  screen_width/2
+    if not (height and height <= screen_height):
+        if height:
+            logging.warning("Trying to set height larger than screen size. Defaulting to half of screen height")
+        height =  screen_height/2
+    widget.geometry(f"{int(width)}x{int(height)}")
+
 #Adapted from https://stackoverflow.com/questions/4770993/how-can-i-make-silent-exceptions-louder-in-tkinter
 class Stderr(object):
     def __init__(self, parent):
@@ -401,7 +415,8 @@ class App(Component):
         # self.root = ThemedTk() #TODO: Figure out how to run this without pip install.
         # self.root.get_themes()
         # self.root.set_theme("plastik")
-        # self.root.geometry("1050x800") #TODO: Set geometry based on width of notebook
+
+        set_widget_geometry(self.root) #TODO: Set geometry based on width of notebook
         # self.root.geometry("+-1000+-1000")
 
         super().__init__(self.root, "app", self.data, special_required_params=["sections"], special_valid_params=["sections", "name", "landing"])
@@ -613,7 +628,7 @@ class App(Component):
     def show_help(self): #TODO: This code is being repeated where we a ScrolledText widget
         self.win = tk.Toplevel()
         self.win.title("General help for the configure script")
-        self.win.geometry("800x500")
+        set_widget_geometry(self.win)
         output = run(self.program, "help")
         self.output = ScrolledText(self.win, state="normal", height=8, width=50)
         self.output.bind("<Key>", textEvent)
@@ -713,7 +728,7 @@ class App(Component):
                 self.win.destroy()
                 self.root.destroy()
             self.win.title("Script's output")
-            self.win.geometry("800x500")
+            set_widget_geometry(self.win)
             self.output = ScrolledText(self.win, state="normal", height=8, width=50)
             self.output.bind("<Key>", textEvent)
             self.output.insert(1.0, output)
@@ -946,7 +961,7 @@ def execute(parent, source, program, autoRun=False, answer=None):
                 if parent:
                     parent.destroy()
             win.title("Script's output")
-            win.geometry("800x500")
+            set_widget_geometry(win)
             output = ScrolledText(win, state="normal", height=8, width=50)
             output.bind("<Key>", textEvent)
             output.insert(1.0, output_txt)
@@ -962,6 +977,10 @@ class LandingPage(Component):
             self.root = parent
         else:
             self.root = Tk()
+        
+        self.root.maxsize(width=531, height=292) #These numbers were found through trial and error
+        self.root.minsize(width=531, height=292) #These numbers were found through trial and error
+        set_widget_geometry(self.root, 531, 292)
 
         with open(config_file, "r") as f:
                 new_json = json.load(f)
