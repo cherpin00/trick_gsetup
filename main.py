@@ -5,7 +5,7 @@ import tkinter
 # import ttkthemes
 
 import tkinter as tk
-from tkinter import StringVar, Tk, ttk
+from tkinter import PhotoImage, StringVar, Tk, ttk
 #from ttkthemes import ThemedTk
 from tkinter import BooleanVar, Toplevel, Text, Menu, Canvas
 from tkinter.constants import NONE, SUNKEN
@@ -174,7 +174,6 @@ class Component:
         self.frame = Frame(parent)
         self.name = name
         self.source = source
-        
 
         self.params = [x for x in dir(self.source) if not x.startswith("_")]
         self.required_params = special_required_params
@@ -384,7 +383,7 @@ class Section(Component):
         return self.frame
 
 class App(Component):
-    def __init__(self, my_json_or_filename, program="/home/cherpin/git/trick/configure"):
+    def __init__(self, my_json_or_filename, program="/home/cherpin/git/trick/configure", resource_folder = f'{os.path.dirname(os.path.realpath(__file__))}/resources'):
         if type(my_json_or_filename) == str:
             self.open(my_json_or_filename)
             self.filename = my_json_or_filename
@@ -396,6 +395,7 @@ class App(Component):
             raise RuntimeError(f"Invalid parameter my_json_or_file: {my_json_or_filename}.")
 
         self._program = program
+        self.resource_folder = resource_folder
 
         self.root = tkinter.Tk()
         # self.root = ThemedTk() #TODO: Figure out how to run this without pip install.
@@ -426,7 +426,7 @@ class App(Component):
         self.build_menu(self.root)
         self.build_search_bar(self.header)
         self.build_current_script(self.footer)
-        
+
         self.notebook_frame = Frame(self.body)
         self.notebook_frame.pack(side="top", expand=True, fill='both')
         self.build_notebook(self.body)
@@ -520,7 +520,10 @@ class App(Component):
         #Search box
         # SearchBox(self).get_frame().pack(anchor="e")
         self.outer_search_box = LabelFrame(parent, text="Filter Options")
-        self.outer_search_box.pack(side="right", anchor="n", fill="x", expand=1)
+        self.outer_search_box.pack(side="left", anchor="n", fill="x", expand=1)
+
+        self.img = PhotoImage(file=f'{self.resource_folder}/trick_small.gif')
+        Label(self.outer_search_box, image=self.img).pack(side="right")
 
         self.search_box = Frame(self.outer_search_box)
         self.search_box.rowconfigure(0, weight=1)
@@ -560,7 +563,7 @@ class App(Component):
         # self.output.insert(1.0, output)
         # self.output["state"] = "disabled"
         # self.pack(self.output, fill="both", expand=True, anchor="w")
-        self.current_command = ScrolledText(self.label_frame, height=8, state="normal")
+        self.current_command = ScrolledText(self.label_frame, height=4, state="normal")
         self.current_command.bind("<Key>", textEvent)
         self.current_command.bind("<Enter>", lambda e: self.setIsInCurrentCommand(True))
         self.current_command.bind("<Leave>", lambda e: self.setIsInCurrentCommand(False))
@@ -629,12 +632,11 @@ class App(Component):
         menubar = Menu(parent)
         filemenu = Menu(menubar, tearoff=0)
         filemenu.add_command(label="Select command", command=self.select_command)
-        # filemenu.add_command(label="Open", command=lambda: print("hello"))
         filemenu.add_command(label="Save options", command=self.save)
         filemenu.add_separator()
         filemenu.add_command(label="Exit", command=parent.destroy) #TODO: This may not work for non root parents
         menubar.add_cascade(label="File", menu=filemenu, underline=0)
-    
+
         parent.config(menu=menubar)
 
     def select_command(self):
@@ -954,7 +956,7 @@ def execute(parent, source, program, autoRun=False, answer=None):
             win.mainloop()
 
 class LandingPage(Component):
-    def __init__(self, parent=None, config_file="./config.json", initial_dir=os.getcwd()) -> None:
+    def __init__(self, parent=None, config_file="./config.json", initial_dir=os.getcwd(), resource_folder = f'{os.path.dirname(os.path.realpath(__file__))}/resources') -> None:
         if parent:
             self.root = parent
         else:
@@ -966,6 +968,8 @@ class LandingPage(Component):
                 self.my_json = new_json
 
         super().__init__(parent, "landing", self.data, special_valid_params=["version", "desc", "title"], special_required_params=[]) #Note: there should be no required params for Landing because landing itself is not required
+
+        self.resource_folder = resource_folder
 
         #Set default values
         self.version = "x.x" if self.version == "default" else self.version 
@@ -986,12 +990,22 @@ class LandingPage(Component):
         self.body.pack()
         self.footer.pack()
 
+
         self.release_label = Label(self.header, text=f"Release {self.version}")
         self.release_label.pack(anchor="w")
-        self.desc_label = Label(self.header, text="Welcome to Trick.", font='Helvetica 15 bold')
-        self.desc_label.pack()
+        
+        
+        self.title_frame = Frame(self.header)
+        self.desc_label = Label(self.title_frame, text="Welcome to Trick.", font='Helvetica 15 bold')
+        self.desc_label.pack(side="left")
+        self.img = PhotoImage(file=f'{self.resource_folder}/trick_icon.png')
+        Label(self.title_frame, image=self.img).pack(side="left")
+        self.title_frame.pack()
+
+
         self.desc_label2 = Label(self.header, wraplength=500, text=self.desc)
         self.desc_label2.pack(pady=10)
+        
 
         self.label = Label(self.body, text="Location:")
         self.label.pack(anchor="w")
@@ -1068,6 +1082,8 @@ if __name__ == "__main__":
     parser.add_argument("-c", "--config", default=f"{os.path.dirname(os.path.realpath(__file__))}/sample_config.json", help=f"json file with gui options and settings {default}")
     parser.add_argument("-b", "--build", action="store_true", default=False, help=f"guess the parameter choices from the scripts help output {default}")
     args = parser.parse_args()
+
+    resource_folder = f'{os.path.dirname(os.path.realpath(__file__))}/resources'
     
     if args.build:
         write_help(args.script_file)
@@ -1083,11 +1099,11 @@ if __name__ == "__main__":
         script_folder = os.path.dirname(os.path.abspath(args.script_file))
     else:
         script_folder = os.getcwd()
-    l = LandingPage(parent=None, config_file=config_file, initial_dir=script_folder)
+    l = LandingPage(parent=None, config_file=config_file, initial_dir=script_folder, resource_folder=resource_folder)
     l.get_frame().mainloop()
     if not l.to_close:
         if l.open_advanced:
-            a = App(config_file, l.program)
+            a = App(config_file, l.program, resource_folder=resource_folder)
             a.get_frame().mainloop()
         else:
             execute(None, Data(sections=Data()), l.program, autoRun=True, answer=True)
