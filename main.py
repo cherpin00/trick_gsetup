@@ -983,20 +983,19 @@ class LandingPage(Component):
         set_widget_geometry(self.root, 531, 292)
 
         with open(config_file, "r") as f:
-                new_json = json.load(f)
-                self.data = Data(**(new_json.get("landing", {})))
-                self.my_json = new_json
+                app_json = json.load(f)
+                self.data = Data(**(app_json.get("landing", {})))
+                self.my_json = app_json
 
-        super().__init__(parent, "landing", self.data, special_valid_params=["version", "desc", "title"], special_required_params=[]) #Note: there should be no required params for Landing because landing itself is not required
+        super().__init__(parent, app_json["name"], self.data, special_valid_params=["version", "desc"], special_required_params=[]) #Note: there should be no required params for Landing because landing itself is not required
 
         self.resource_folder = resource_folder
 
         #Set default values
         self.version = "x.x" if self.version == "default" else self.version 
         self.desc = "This setup guide will allow you to easily see all the options that are available to configure Trick with." if self.desc == "default" else self.desc
-        self.title = "Configure trick" if self.title == "default" else self.title
 
-        self.root.title(self.title)
+        self.root.title(self.name)
         self.config_file = os.path.abspath(config_file)
         
         self.open_advanced = False

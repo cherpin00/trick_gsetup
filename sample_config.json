@@ -1,4 +1,5 @@
 {
+    "name" : "Trick's Graphical Configuration",
     "landing": {
         "version": "1.0",
         "desc": "This setup guide will allow you to easily see all the options that are available to configure Trick with."
@@ -9,7 +10,7 @@
                 "test" : {
                     "type" : "dir"
                 },
-                "config-cache": {
+                "cxonfig-cache": {
                     "desc": "alias for `--cache-file=config.cache'",
                     "type": "flag",
                     "value": "no"
