@@ -401,7 +401,8 @@ class App(Component):
         # self.root = ThemedTk() #TODO: Figure out how to run this without pip install.
         # self.root.get_themes()
         # self.root.set_theme("plastik")
-        self.root.geometry("1050x800") #TODO: Set geometry based on width of notebook
+        # self.root.geometry("1050x800") #TODO: Set geometry based on width of notebook
+        # self.root.geometry("+-1000+-1000")
 
         super().__init__(self.root, "app", self.data, special_required_params=["sections"], special_valid_params=["sections", "name", "landing"])
         
