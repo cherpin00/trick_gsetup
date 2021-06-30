@@ -1,11 +1,14 @@
 {
-    "landing" : {
-        "version" : "x.x",
-        "desc" : "This setup guide will allow you to easily see all the options that are available to configure Trick with."
+    "landing": {
+        "version": "1.0",
+        "desc": "This setup guide will allow you to easily see all the options that are available to configure Trick with."
     },
     "sections": {
         "Configuration:": {
             "options": {
+                "test" : {
+                    "type" : "dir"
+                },
                 "config-cache": {
                     "desc": "alias for `--cache-file=config.cache'",
                     "type": "flag",
@@ -34,7 +37,7 @@
                 "version": {
                     "desc": "display version information and exit",
                     "type": "flag",
-                    "value": "no"
+                    "value": "yes"
                 }
             }
         },
