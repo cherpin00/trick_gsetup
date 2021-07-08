@@ -1,5 +1,5 @@
 {
-    "name" : "Trick's Graphical Configuration",
+    "name": "Trick's Graphical Configuration",
     "landing": {
         "version": "1.0",
         "desc": "This setup guide will allow you to easily see all the options that are available to configure Trick with."
@@ -7,8 +7,9 @@
     "sections": {
         "Configuration:": {
             "options": {
-                "test" : {
-                    "type" : "dir"
+                "test": {
+                    "type": "dir",
+                    "value": ""
                 },
                 "cxonfig-cache": {
                     "desc": "alias for `--cache-file=config.cache'",
@@ -38,7 +39,7 @@
                 "version": {
                     "desc": "display version information and exit",
                     "type": "flag",
-                    "value": "yes"
+                    "value": "no"
                 }
             }
         },
@@ -174,7 +175,7 @@
                 "enable-mongoose": {
                     "desc": "Compile Trick with webserver capabilites.",
                     "type": "flag",
-                    "value": "no"
+                    "value": "yes"
                 },
                 "enable-offline": {
                     "desc": "Compile Trick in offline mode. Un-tar the",

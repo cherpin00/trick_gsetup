@@ -8,8 +8,8 @@ import tkinter as tk
 from tkinter import PhotoImage, StringVar, Tk, ttk
 #from ttkthemes import ThemedTk
 from tkinter import BooleanVar, Toplevel, Text, Menu, Canvas
-from tkinter.constants import NONE, SUNKEN
-from tkinter.ttk import Frame, Button, Entry, Label, Checkbutton, LabelFrame, Scrollbar
+from tkinter.constants import ANCHOR, NONE, SUNKEN
+from tkinter.ttk import Frame, Button, Entry, Label, Checkbutton, LabelFrame, Radiobutton, Scrollbar
 from tkinter import ttk
 import json
 from tkinter import filedialog
@@ -63,7 +63,7 @@ def get_configure_command(command, config_json, include_vars=False):
         for option_name, option in get_with_catch(section, "options").items():
             if get_with_catch(option, "type") in ("bool", "flag"):
                 value = bool_to_string(string_to_bool(str(get_with_catch(option, "value"))))
-            elif get_with_catch(option, "type") in ("dir"):
+            elif get_with_catch(option, "type") in ("dir", "string"):
                 value = str(get_with_catch(option, "value"))
                 if value == "":
                     continue
@@ -77,9 +77,11 @@ def get_configure_command(command, config_json, include_vars=False):
                     if include_vars:
                         vars += f"{option_name} = {value}\n"
                 continue
+            elif get_with_catch(option, "type") in ("radio"):
+                value = str(get_with_catch(option, "value"))
             else:
                 my_type = get_with_catch(option, "type")
-                raise RuntimeError(f"Option type '{my_type}' in {option} is not implemented yet.")
+                raise RuntimeError(f"In function call get_configure_command: Option type '{my_type}' in {option} is not implemented yet.")
             if value not in ("no"): #TODO: Check what possible values there are for false
                 #TODO: Should we add the no's to the comand
                 command += f"{sep}--{option_name}"
@@ -112,8 +114,8 @@ def run(program, *args, **kargs):
         new_args.append(f"--{value}")
     if time:
         program = "time " + program
-    logging.info("Running: " + str(program.split(" ") + new_args))
-    process = subprocess.run(program.split(" ") + new_args, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
+    logging.info("Running: " + str(program + " ".join(new_args)))
+    process = subprocess.run(program + " ".join(new_args), stderr=subprocess.STDOUT, stdout=subprocess.PIPE, shell=True)
     return process.stdout.decode()
 
 def textEvent(e):
@@ -342,6 +344,13 @@ class OptionBool(Option):
         logging.debug(f"Setting value to {self.bool.get()}.")
         self.value = "yes" if self.bool.get() else "no"
 
+class OptionString(OptionDir):
+    def __init__(self, parent, section, name, data):
+        super().__init__(parent, section, name, data)
+
+        self.container["text"] = self.container["text"]
+        self.browse_button.pack_forget()
+
 class OptionEnvVar(OptionDir):
     def __init__(self, parent, section, name, data):
         super().__init__(parent, section, name, data)
@@ -365,6 +374,30 @@ class OptionEnvVar(OptionDir):
         # logging.debug(f"Setting value to {self.directory_entry.get()}")
         # self.value = self.directory_entry.get()    
 
+class OptionRadio(Option):
+    def __init__(self, parent, section, name: str, data: Data):
+        super().__init__(parent, section, name, data, special_valid_params=["options"], special_required_params=[])
+        self.options = [] if self.options == "default" else self.options
+        self.value = "" if self.value == "default" else self.value
+
+        self.box = LabelFrame(self.get_frame(), text=f"{self.name} - {self.desc}")
+        self.pack(self.box, side="left")
+
+        self.variable = StringVar(value=self.value)
+        for key, obj in self.options._dict_().items():
+            desc = obj.get("desc", "")
+            if len(desc) > 0:
+                desc = " - " + desc
+            self.pack(Radiobutton(self.box, text=f"{key}{desc}", variable = self.variable, value=key, command=lambda: self.handler()), anchor="w")
+
+    def handler(self):
+        if self.variable.get() == self.value:
+            self.variable.set("")
+        logging.debug(f"Setting value to {self.variable.get()}")
+        self.value = self.variable.get()
+
+            
+
 class Section(Component):
     def __init__(self, parent, section, data:Data): #TODO: Figure out if I can pass in data instead of making it global
         valid_params = ["options", "size"] #TODO: Use size or take it out of valid params
@@ -385,8 +418,12 @@ class Section(Component):
                 self.components[option] = OptionDir(self.get_frame(), section, option, data)
             elif my_type == "bool" or my_type == "flag":
                 self.components[option] = OptionBool(self.get_frame(), section, option, data)
-            elif my_type == "string" or my_type == "envvar":
+            elif my_type == "envvar":
                 self.components[option] = OptionEnvVar(self.get_frame(), section, option, data)
+            elif my_type == "radio":
+                self.components[option] = OptionRadio(self.get_frame(), section, option, data)
+            elif my_type == "string":
+                self.components[option] = OptionString(self.get_frame(), section, option, data)
             else:
                 raise RuntimeError(f"Option type '{my_type}' in {option} is not implemented yet.")
             
@@ -987,7 +1024,7 @@ class LandingPage(Component):
                 self.data = Data(**(app_json.get("landing", {})))
                 self.my_json = app_json
 
-        super().__init__(parent, app_json["name"], self.data, special_valid_params=["version", "desc"], special_required_params=[]) #Note: there should be no required params for Landing because landing itself is not required
+        super().__init__(parent, app_json.get("name", "landing"), self.data, special_valid_params=["version", "desc"], special_required_params=[]) #Note: there should be no required params for Landing because landing itself is not required
 
         self.resource_folder = resource_folder
 
