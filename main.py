@@ -85,7 +85,7 @@ def get_configure_command(command, config_json, include_vars=False):
             if value not in ("no"): #TODO: Check what possible values there are for false
                 #TODO: Should we add the no's to the comand
                 command += f"{sep}--{option_name}"
-                if option["type"] != "flag":
+                if option["type"] != "flag" and value not in ("EMPTY"): #TODO: Tell the developer this is a key word
                     value = QuoteForPOSIX(value)
                     command += f"={value}"
     if include_vars:
@@ -386,9 +386,10 @@ class OptionRadio(Option):
         self.variable = StringVar(value=self.value)
         for key, obj in self.options._dict_().items():
             desc = obj.get("desc", "")
+            value = obj.get("value", key)
             if len(desc) > 0:
                 desc = " - " + desc
-            self.pack(Radiobutton(self.box, text=f"{key}{desc}", variable = self.variable, value=key, command=lambda: self.handler()), anchor="w")
+            self.pack(Radiobutton(self.box, text=f"{key}{desc}", variable = self.variable, value=value, command=lambda: self.handler()), anchor="w")
 
     def handler(self):
         if self.variable.get() == self.value:
@@ -403,10 +404,10 @@ class Section(Component):
         valid_params = ["options", "size"] #TODO: Use size or take it out of valid params
         required_params = ["options"]
         super().__init__(parent, section, getattr(getattr(data, "sections"), section), special_valid_params=valid_params, special_required_params=required_params)
-    
+
+        self.scrollable = self.get_scrollable_frame(self.get_frame())
+
         self.components = {}
-        # self.frame = Frame(parent)
-        # self.frame.pack(fill="both", expand = 1) #TODO: Not sure if this is needed
         if type(parent) == Notebook:
             parent.add(self.get_frame(), text=section)
         
@@ -415,30 +416,93 @@ class Section(Component):
             obj = getattr(getattr(self.source, "options"), option)
             my_type = obj.type
             if my_type == "dir":
-                self.components[option] = OptionDir(self.get_frame(), section, option, data)
+                self.components[option] = OptionDir(self.get_scrollable(), section, option, data)
             elif my_type == "bool" or my_type == "flag":
-                self.components[option] = OptionBool(self.get_frame(), section, option, data)
+                self.components[option] = OptionBool(self.get_scrollable(), section, option, data)
             elif my_type == "envvar":
-                self.components[option] = OptionEnvVar(self.get_frame(), section, option, data)
+                self.components[option] = OptionEnvVar(self.get_scrollable(), section, option, data)
             elif my_type == "radio":
-                self.components[option] = OptionRadio(self.get_frame(), section, option, data)
+                self.components[option] = OptionRadio(self.get_scrollable(), section, option, data)
             elif my_type == "string":
-                self.components[option] = OptionString(self.get_frame(), section, option, data)
+                self.components[option] = OptionString(self.get_scrollable(), section, option, data)
             else:
                 raise RuntimeError(f"Option type '{my_type}' in {option} is not implemented yet.")
             
             # self.components[option].get_frame().pack(fill="both", expand=1, side="top")
             self.pack(self.components[option].get_frame(), fill = self.components[option].fill, expand = self.components[option].expand)
-    
+        
+    def get_scrollable(self):
+        if self.scrollable:
+            return self.scrollable
+        else:
+            return self.get_frame()
+
     def get_frame(self):
         return self.frame
+    
+    def get_required_height(self):
+        total = 0
+        for component in self.components.values():
+             total += component.get_frame().winfo_height()
+        return total
+    
+    def update_scrollbar(self):
+        if self.get_required_height() < self.main_frame.winfo_height():
+            self.my_scrollbar.pack_forget()
+            self.scrollable = False
+        else:
+            self.my_scrollbar.pack(side="right", fill="y")
+            self.scrollable = True
+
+    def get_scrollable_frame(self, parent):
+        self.main_frame = Frame(parent)
+        self.main_frame.pack(fill="both", expand=True)
+
+        self.main_frame.bind("<Configure>", lambda e: self.update_scrollbar())
+
+        self.my_canvas = Canvas(self.main_frame)
+        self.my_canvas.pack(side="left", fill="both", expand=True)
+
+        self.my_scrollbar = ttk.Scrollbar(master=self.main_frame, orient="vertical", command=self.my_canvas.yview)
+
+        self.my_canvas.configure(yscrollcommand=self.my_scrollbar.set)
+
+        second_frame = Frame(self.my_canvas)
+        canvasFrame = self.my_canvas.create_window((0, 0), window=second_frame, anchor="nw")
+        
+        self.setIsInCanvas(False)
+        second_frame.bind("<Configure>", lambda e: self.my_canvas.configure(scrollregion=self.my_canvas.bbox("all")))
+        self.my_canvas.bind('<Configure>', lambda e: self.my_canvas.itemconfig(canvasFrame, width=e.width))
+    
+        self.my_canvas.bind('<Enter>', lambda e: self.setIsInCanvas(True))
+        self.my_canvas.bind('<Leave>', lambda e: self.setIsInCanvas(False))
+
+        return second_frame
+    
+    def setIsInCanvas(self, bool):
+        self.isInCanvas = bool
+        print(f"{self.name} - isInCanvas: ", self.isInCanvas)
+    
+    def _scroll(self, dir):
+        if self.scrollable:
+            print(f"{self.name} - Checking - isInCanvas = {self.isInCanvas}")
+            if self.isInCanvas:
+                speed = 1
+                self.my_canvas.yview_scroll(dir * speed, "units")
+    
+    def scroll_up(self):
+        self._scroll(1)
+
+    def scroll_down(self):
+        self._scroll(-1)
+
 
 class App(Component):
     def __init__(self, my_json_or_filename, program="/home/cherpin/git/trick/configure", resource_folder = f'{os.path.dirname(os.path.realpath(__file__))}/resources'):
-        if type(my_json_or_filename) == str:
+        if type(my_json_or_filename) == str: #Handle a file name
             self.open(my_json_or_filename)
             self.filename = my_json_or_filename
-        elif type(my_json_or_filename == dict):
+        elif type(my_json_or_filename == dict): #Handle a dictionary object
             self.filename = None
             self.data = Data(**my_json_or_filename)
             self.my_json = my_json_or_filename
@@ -473,7 +537,8 @@ class App(Component):
         self.options_title = "Options for script"
         self.notebook_label_frame = LabelFrame(self.root, text=self.options_title) #TODO: Add dynamic (script) and (filtered) text
         self.notebook_label_frame.pack(expand=True, fill="both")
-        self.body = self.get_body(self.notebook_label_frame)
+        self.body = Frame(self.notebook_label_frame)
+        self.body.pack(expand=True, fill="both")
 
         self.add_shortcuts()
         self.build_menu(self.root)
@@ -481,7 +546,6 @@ class App(Component):
         self.build_current_script(self.footer)
 
         self.notebook_frame = Frame(self.body)
-        self.notebook_frame.pack(side="top", expand=True, fill='both')
         self.build_notebook(self.body)
         self.build_current_command() #We can only run this after we build a notebook
 
@@ -518,38 +582,6 @@ class App(Component):
     def focus_search(self):
         self.search_entry.focus_set()
 
-    def get_body(self, parent):
-        main_frame = Frame(parent)
-        main_frame.pack(fill="both", expand=True)
-
-        my_canvas = Canvas(main_frame)
-        my_canvas.pack(side="left", fill="both", expand=True)
-
-        my_scrollbar = ttk.Scrollbar(master=main_frame, orient="vertical", command=my_canvas.yview)
-        my_scrollbar.pack(side="right", fill="y")
-
-        my_canvas.configure(yscrollcommand=my_scrollbar.set)
-
-        second_frame = Frame(my_canvas)
-        canvasFrame = my_canvas.create_window((0, 0), window=second_frame, anchor="nw")
-        
-        self.setIsInCanvas(False)
-        second_frame.bind("<Configure>", lambda e: my_canvas.configure(scrollregion=my_canvas.bbox("all")))
-        my_canvas.bind('<Configure>', lambda e: my_canvas.itemconfig(canvasFrame, width=e.width))
-        def _scroll(e, dir):
-            if self.isInCanvas:
-                speed = 1
-                my_canvas.yview_scroll(dir * speed, "units")
-
-        self.root.bind_all('<Button-4>', lambda e: _scroll(e, -1))
-        self.root.bind_all('<Button-5>', lambda e: _scroll(e, 1))
-        my_canvas.bind('<Enter>', lambda e: self.setIsInCanvas(True))
-        my_canvas.bind('<Leave>', lambda e: self.setIsInCanvas(False))
-
-        return second_frame
-    def setIsInCanvas(self, value):
-        self.isInCanvas = value
-
     def conf(self, e):
             self.body.update()
             height = self.body.winfo_height()
@@ -568,6 +600,9 @@ class App(Component):
                 self.sections[section] = Section(self.notebook, section, self.source)
         
         self.previous_section_length = 0
+
+        self.get_frame().bind_all('<Button-4>', lambda e: self.sections[self.notebook.tab(self.notebook.select(), "text")].scroll_down())
+        self.get_frame().bind_all('<Button-5>', lambda e: self.sections[self.notebook.tab(self.notebook.select(), "text")].scroll_up())
 
     def build_search_bar(self, parent):
         #Search box
@@ -814,55 +849,7 @@ class App(Component):
     def is_saved(self):
         # return DeepDiff(self.original_dict, self.data._dict_())
         return self.original_dict == self.data._dict_()
-    
-    def get_scrollable_frame(self, parent, axis):
-    #Create a Main Frame
-        main_frame = Frame(parent)
-        main_frame.pack(fill="both", expand=True, side="left")
-
-        #Create  Canvas
-        my_canvas = Canvas(main_frame)
-        # my_canvas.pack(fill="both", expand=True)
-        my_canvas.grid(row=0, column=0, sticky="nsew")
-
-        self.get_scroll_bar(main_frame, my_canvas, axis)
-
-        #Create another frame inside the canvas
-        second_frame = Frame(my_canvas)
         
-        #Add new frame to window in canvas
-        my_canvas.create_window((0,0), window=second_frame, anchor="nw")
-
-        return second_frame
-    
-    def get_scroll_bar(self, main_frame, my_canvas, axis):
-    #Add a scrollbar to canvas
-        if axis == "x" or axis == "both":
-            my_scrollbar = Scrollbar(main_frame, orient="horizontal", command=my_canvas.xview)
-            # my_scrollbar.pack(side="bottom", fill="x")
-            my_scrollbar.grid(row=100, column=0, sticky="ew")
-            my_canvas.configure(xscrollcommand=my_scrollbar.set)
-            my_canvas.bind("<Configure>", lambda e: my_canvas.configure(scrollregion=my_canvas.bbox("all")))
-            def _on_mouse_wheel(event):
-                my_canvas.xview_scroll(-1 * int((event.delta / 120)), "units")
-
-            my_canvas.bind_all("<MouseWheel>", _on_mouse_wheel)
-        if axis == "y" or axis == "both":
-            #Add a scrollbar to canvas
-            my_scrollbar = Scrollbar(main_frame, orient="vertical", command=my_canvas.yview)
-            # my_scrollbar.pack(side="right", fill="y")
-            my_scrollbar.grid(row=0, column=100, sticky="ns")
-            my_canvas.configure(yscrollcommand=my_scrollbar.set)
-            my_canvas.bind("<Configure>", lambda e: my_canvas.configure(scrollregion=my_canvas.bbox("all")))
-            def _on_mouse_wheel(event):
-                my_canvas.yview_scroll(-1 * int((event.delta / 120)), "units")
-
-            my_canvas.bind_all("<MouseWheel>", _on_mouse_wheel)
-        
-        main_frame.rowconfigure(0, weight=1)
-        main_frame.columnconfigure(0, weight=1)
-        #TODO: put error here if of the options above
-    
 class RunCommand:
     def __init__(self, parent, command, autoRun = False) -> None:
         self.win = tk.Toplevel()
@@ -1134,7 +1121,6 @@ if __name__ == "__main__":
 
     default = "(default: %(default)s)"
     parser.add_argument("-s", "--script-file", default="./configure", help=f"script to add args to {default}")
-    # parser.add_argument("-c", "--config", default="./config.json", help=f"json file with gui options and settings {default}")
     parser.add_argument("-c", "--config", default=f"{os.path.dirname(os.path.realpath(__file__))}/sample_config.json", help=f"json file with gui options and settings {default}")
     parser.add_argument("-b", "--build", action="store_true", default=False, help=f"guess the parameter choices from the scripts help output {default}")
     args = parser.parse_args()
