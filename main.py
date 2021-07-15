@@ -114,13 +114,14 @@ def run(program, *args, **kargs):
         new_args.append(f"--{value}")
     if time:
         program = "time " + program
-    logging.info("Running: " + str(program + " ".join(new_args)))
-    process = subprocess.run(program + " ".join(new_args), stderr=subprocess.STDOUT, stdout=subprocess.PIPE, shell=True)
+    cmd = str(program + " " + " ".join(new_args))
+    logging.info("Running: " + cmd)
+    process = subprocess.run(cmd, stderr=subprocess.STDOUT, stdout=subprocess.PIPE, shell=True)
     return process.stdout.decode()
 
 def textEvent(e):
-    print("state", e.state)
-    print("key", e.keysym)
+    logging.debug(f"state: {e.state}")
+    logging.debug(f"key: {e.keysym}")
     if (e.state == 20 and e.keysym == "c"): #TODO: Add other exceptions like Ctrl+a
         return
     else:
@@ -481,11 +482,9 @@ class Section(Component):
     
     def setIsInCanvas(self, bool):
         self.isInCanvas = bool
-        print(f"{self.name} - isInCanvas: ", self.isInCanvas)
     
     def _scroll(self, dir):
         if self.scrollable:
-            print(f"{self.name} - Checking - isInCanvas = {self.isInCanvas}")
             if self.isInCanvas:
                 speed = 1
                 self.my_canvas.yview_scroll(dir * speed, "units")
@@ -593,7 +592,6 @@ class App(Component):
         self.root.bind(f"<Alt-s>", lambda e: self.focus_search())
 
     def focus_options(self):
-        # print("Hello")
         self.notebook_label_frame.focus_set()
     
     def focus_search(self):

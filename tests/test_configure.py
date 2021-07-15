@@ -146,9 +146,10 @@ def test_bool_to_sting():
 def test_run():
     stdout = run('echo Hello World!')
     assert stdout == "Hello World!\n"
-
-    with pytest.raises(FileNotFoundError) as e_info:
-        ps = run("configure")
+    stdout = run("configure")
+    assert stdout == "/bin/sh: 1: configure: not found\n"
+    stdout = run("python3 check_env.py", "hello")
+    assert stdout == "Hello World!\n"
 
 def test_envvar():
     my_json = {
