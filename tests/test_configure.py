@@ -205,4 +205,4 @@ def test_unsupported_type():
     }
     with pytest.raises(RuntimeError) as e_info:
         cmd = get_configure_command("test", my_json)
-    assert e_info.value.args[0] == "Option type 'bad' in {'type': 'bad', 'value': ''} is not implemented yet."
+    assert e_info.value.args[0] == "In function call get_configure_command: Option type 'bad' in {'type': 'bad', 'value': ''} is not implemented yet."
