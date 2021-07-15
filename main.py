@@ -615,6 +615,7 @@ class App(Component):
             obj = getattr(getattr(self.source, "sections"), section)
             if len(getattr(obj, "options")._dict_()) > 0: #Note: not adding section if empty
                 self.sections[section] = Section(self.notebook, section, self.source)
+                CreateToolTip(self.sections[section].get_frame(), section)
         
         self.previous_section_length = 0
 
@@ -783,7 +784,6 @@ class App(Component):
                 if self.previous_section_length == 0:
                     self.notebook.select(0)
                 self.notebook.add(sections[section].get_frame(), text=section)
-                CreateToolTip(sections[section].get_frame(), "hello")
                 self.current_section_length += 1
             section_id += 1
         self.previous_section_length = self.current_section_length
