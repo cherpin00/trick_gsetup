@@ -781,7 +781,7 @@ class App(Component):
             else:
                 if self.previous_section_length == 0:
                     self.notebook.select(0)
-                self.notebook.add(sections[section].get_frame(), text=section)
+                self.notebook.add(sections[section].get_frame())
                 self.current_section_length += 1
             section_id += 1
         self.previous_section_length = self.current_section_length
