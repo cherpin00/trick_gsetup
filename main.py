@@ -525,7 +525,7 @@ class App(Component):
         self.name = "app" if self.name == "default" else self.name
 
         self.root.title(self.name)
-        self.root.minsize(width=1000, height=400)
+        self.root.minsize(width=500, height=400)
         # self.root.maxsize(width=800, height=800)
 
         self.root.report_callback_exception = self.report_callback_exception
@@ -535,10 +535,27 @@ class App(Component):
         self.footer = Frame(self.root)
         self.footer.pack(side="bottom", fill="x")
         self.options_title = "Options for script"
-        self.notebook_label_frame = LabelFrame(self.root, text=self.options_title) #TODO: Add dynamic (script) and (filtered) text
+        self.notebook_label_frame = LabelFrame(self.root, text=self.options_title)
         self.notebook_label_frame.pack(expand=True, fill="both")
         self.body = Frame(self.notebook_label_frame)
         self.body.pack(expand=True, fill="both")
+
+        def switch_tab(dir):
+            total_number_of_tabs = self.notebook.index("end")
+            next_id = self.notebook.index(self.notebook.select()) + dir
+            if total_number_of_tabs - 1 < next_id or next_id < 0:
+                self.notebook.select(0 if dir > 0 else total_number_of_tabs - 1)
+            else:
+                self.notebook.select(next_id)
+
+        navigation_frame = Frame(self.body)
+        navigation_frame.pack(anchor="e")
+
+        tab_right_button = Button(navigation_frame, text="right", command=lambda: switch_tab(1)) #TODO: Make this a picture
+        tab_right_button.pack(side="right")
+        tab_left_button = Button(navigation_frame, text="left", command=lambda: switch_tab(-1)) #TODO: Make this a picture
+        tab_left_button.pack(side="right")
+
 
         self.add_shortcuts()
         self.build_menu(self.root)
@@ -766,6 +783,7 @@ class App(Component):
                 if self.previous_section_length == 0:
                     self.notebook.select(0)
                 self.notebook.add(sections[section].get_frame(), text=section)
+                CreateToolTip(sections[section].get_frame(), "hello")
                 self.current_section_length += 1
             section_id += 1
         self.previous_section_length = self.current_section_length
