@@ -1155,8 +1155,7 @@ class LandingPage(Component):
         return self.root
         
         
-
-if __name__ == "__main__":
+def main():
     logging.getLogger().setLevel(logging.DEBUG)
     parser = argparse.ArgumentParser()
     enable_load = False
@@ -1196,3 +1195,6 @@ if __name__ == "__main__":
             a.get_frame().mainloop()
         else:
             execute(None, Data(sections=Data()), l.program, autoRun=True, answer=True)
+
+if __name__ == "__main__":
+    main()
