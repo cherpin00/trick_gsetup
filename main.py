@@ -486,8 +486,9 @@ class Section(Component):
     def _scroll(self, dir):
         if self.scrollable:
             if self.isInCanvas:
-                speed = 1
-                self.my_canvas.yview_scroll(dir * speed, "units")
+                if self.get_frame().winfo_ismapped():
+                    speed = 1
+                    self.my_canvas.yview_scroll(dir * speed, "units")
     
     def scroll_up(self):
         self._scroll(1)
@@ -540,11 +541,16 @@ class App(Component):
         self.body.pack(expand=True, fill="both")
 
         def switch_tab(dir):
-            total_number_of_tabs = self.notebook.index("end")
-            next_id = self.notebook.index(self.notebook.select()) + dir
-            if total_number_of_tabs - 1 < next_id or next_id < 0:
-                self.notebook.select(0 if dir > 0 else total_number_of_tabs - 1)
-            else:
+            total_number_of_tabs = len(self.showing["sections"])
+            if total_number_of_tabs > 0:
+                showing = list(self.showing["sections"])
+                next_id = showing.index(self.notebook_name) + dir
+                if total_number_of_tabs - 1 < next_id:
+                    next_id = list(self.sections).index(showing[0])
+                elif next_id < 0:
+                    next_id = list(self.sections).index(showing[total_number_of_tabs - 1])
+                else:
+                    next_id = list(self.sections).index(showing[next_id])
                 self.notebook.select(next_id)
 
         navigation_frame = Frame(self.body)
@@ -617,8 +623,19 @@ class App(Component):
         
         self.previous_section_length = 0
 
-        self.get_frame().bind_all('<Button-4>', lambda e: self.sections[self.notebook.tab(self.notebook.select(), "text")].scroll_down())
-        self.get_frame().bind_all('<Button-5>', lambda e: self.sections[self.notebook.tab(self.notebook.select(), "text")].scroll_up())
+        def call_func_on_obj(obj, func):
+            if obj:
+                getattr(obj, func)()
+        
+        self.get_frame().bind_all('<Button-4>', lambda e: call_func_on_obj(self.sections.get(self.notebook_name), "scroll_down"))
+        self.get_frame().bind_all('<Button-5>', lambda e: call_func_on_obj(self.sections.get(self.notebook_name), "scroll_up"))
+        self.call_search()
+    
+
+    @property
+    def notebook_name(self):
+        if len(self.showing["sections"]) > 0:
+            return self.notebook.tab(self.notebook.select(), "text")
 
     def build_search_bar(self, parent):
         #Search box
@@ -762,22 +779,22 @@ class App(Component):
     def _search(self, word, sections):
         section_id = 0
         self.current_section_length = 0
-        showing = { "sections" : {} } #This is used for testing.
+        self.showing = { "sections" : {} }
         for section in sections:
             options = sections[section].components
             count_hidden = 0
-            showing["sections"][section] = {}
-            showing["sections"][section]["options"] = {}
+            self.showing["sections"][section] = {}
+            self.showing["sections"][section]["options"] = {}
             for option in options: #TODO: Allow for double grouping
                 if (word != '' and not App.is_match(word, option, options[option].desc)) or (self.only_checked.get() and options[option].value in ("no", "")):
                     options[option].get_frame().pack_forget()
                     count_hidden += 1
                 else:
                     options[option].get_frame().pack(fill = options[option].fill, )
-                    showing["sections"][section]["options"][option] = self.my_json["sections"][section]["options"][option]
+                    self.showing["sections"][section]["options"][option] = self.my_json["sections"][section]["options"][option]
             if count_hidden == len(sections[section].components):
                 self.notebook.hide(section_id)
-                del showing["sections"][section]
+                del self.showing["sections"][section]
             else:
                 if self.previous_section_length == 0:
                     self.notebook.select(0)
@@ -785,7 +802,7 @@ class App(Component):
                 self.current_section_length += 1
             section_id += 1
         self.previous_section_length = self.current_section_length
-        return showing
+        return self.showing
     
     @staticmethod
     def is_match(search, *args): #Pass in args to see if search is a match with any of the arguments
