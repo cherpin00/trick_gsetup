@@ -1147,10 +1147,10 @@ class LandingPage(Component):
         
         
 
-from load import load, write_help
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.DEBUG)
     parser = argparse.ArgumentParser()
+    enable_load = False
 
     default = "(default: %(default)s)"
     parser.add_argument("-s", "--script-file", default="./configure", help=f"script to add args to {default}")
@@ -1161,8 +1161,12 @@ if __name__ == "__main__":
     resource_folder = f'{os.path.dirname(os.path.realpath(__file__))}/resources'
     
     if args.build:
-        write_help(args.script_file)
-        load()
+        if enable_load:
+            from load import load, write_help
+            write_help(args.script_file)
+            load()
+        else:
+            logging.warning(f"Build functionality is not enabled.  Not loading {args.script_file}.")
     
     config_file = args.config
     if not os.path.isfile(config_file):
