@@ -222,6 +222,9 @@ class Component:
     def grid(self, tk, **kargs):
         if not self.get_hidden():
             tk.grid(kargs)
+        
+    def get_frame(self):
+        return self.frame
 
 class Option(Component):
     def __init__(self, parent, section, name, data, special_valid_params = [], special_required_params=[]) -> None:
@@ -874,7 +877,9 @@ class App(Component):
     #Adapted from https://stackoverflow.com/questions/4770993/how-can-i-make-silent-exceptions-louder-in-tkinter
     def report_callback_exception(self, exc, val, tb):
         #Handles tkinter exceptions
-        err_msg = {}
+        err_msg = {
+            "No file to save configuration to." : "You cannot save you current options because Gsetup was run without a configuration file."
+            }
         err = err_msg.get(str(val), f'Unknown Error:{val}')
         logging.error(traceback.format_exception(exc, val, tb))
         messagebox.showerror('Error Found', err)
@@ -980,12 +985,13 @@ class ChooseConfigure:
 
         self.continue_button = Button(self.root, text="Continue", command=self.continue_func)
         self.continue_button.pack()
+
+        self.file = { #This is the default configuration
+            "sections" : {},
+            # "landing" : { "version" : 1.0}
+        }
     
     def continue_func(self):
-        self.file = {
-            "name" : "Trick Setup",
-            "sections" : {}
-        }
         self.root.destroy()
 
     def get_frame(self):
@@ -1039,10 +1045,14 @@ class LandingPage(Component):
         self.root.minsize(width=531, height=292) #These numbers were found through trial and error
         set_widget_geometry(self.root, 531, 292)
 
-        with open(config_file, "r") as f:
+        if type(config_file) is str:
+            with open(config_file, "r") as f:
                 app_json = json.load(f)
-                self.data = Data(**(app_json.get("landing", {})))
-                self.my_json = app_json
+        elif type(config_file) is dict:
+            app_json = config_file
+        else:
+            raise RuntimeError(f"Config_file is {type(config_file)}. It must be either a string or a dict.")
+        self.data = Data(**(app_json.get("landing", {})))
 
         super().__init__(parent, app_json.get("name", "landing"), self.data, special_valid_params=["version", "desc"], special_required_params=[]) #Note: there should be no required params for Landing because landing itself is not required
 
@@ -1053,7 +1063,6 @@ class LandingPage(Component):
         self.desc = "This setup guide will allow you to easily see all the options that are available to configure Trick with." if self.desc == "default" else self.desc
 
         self.root.title(self.name)
-        self.config_file = os.path.abspath(config_file)
         
         self.open_advanced = False
         self.to_close = True
@@ -1063,7 +1072,7 @@ class LandingPage(Component):
         self.footer = Frame(self.root)
 
         self.header.pack()
-        self.body.pack()
+        self.body.pack(expand=True, fill="both")
         self.footer.pack()
 
 
@@ -1084,11 +1093,11 @@ class LandingPage(Component):
         
 
         self.label = Label(self.body, text="Location:")
-        self.label.pack(anchor="w")
+        self.label.pack(anchor="w", padx=50)
 
         self.folder_location = StringVar(value=initial_dir)
         self.folder_entry = Entry(self.body, textvariable=self.folder_location)
-        self.folder_entry.pack(side="left")
+        self.folder_entry.pack(side="left", expand=True, fill="x", padx=50)
 
         self.change_button = Button(self.body, text="Change", command=self.change_dir)
         CreateToolTip(self.change_button, "Click here to choose Trick's home directory.  Configure will run from within this directory.")
@@ -1173,7 +1182,8 @@ if __name__ == "__main__":
         c = ChooseConfigure()
         c.get_frame().mainloop()
         config_file = c.get_file()
-    config_file = os.path.abspath(config_file) #Landing page will change cwd so we get abs path
+    if type(config_file) is str:
+        config_file = os.path.abspath(config_file) #Landing page will change cwd so we get abs path
     if os.path.exists(args.script_file):
         script_folder = os.path.dirname(os.path.abspath(args.script_file))
     else:
