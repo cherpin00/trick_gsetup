@@ -7,6 +7,5 @@ share/trick/makefiles/config_user.mk
 build/*
 main
 main.spec
-check_env.py
 *practice*
 *.cache
