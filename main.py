@@ -520,8 +520,7 @@ class App(Component):
         # self.root.get_themes()
         # self.root.set_theme("plastik")
 
-        set_widget_geometry(self.root) #TODO: Set geometry based on width of notebook
-        # self.root.geometry("+-1000+-1000")
+        set_widget_geometry(self.root)
 
         super().__init__(self.root, "app", self.data, special_required_params=["sections"], special_valid_params=["sections", "name", "landing"])
         
@@ -529,20 +528,22 @@ class App(Component):
 
         self.root.title(self.name)
         self.root.minsize(width=500, height=400)
-        # self.root.maxsize(width=800, height=800)
-
         self.root.report_callback_exception = self.report_callback_exception
         
         self.header = Frame(self.root)
         self.header.pack(side = "top", fill="x")
+
         self.footer = Frame(self.root)
         self.footer.pack(side="bottom", fill="x")
+
         self.options_title = "Options for script"
         self.notebook_label_frame = LabelFrame(self.root, text=self.options_title)
         self.notebook_label_frame.pack(expand=True, fill="both")
+        
         self.body = Frame(self.notebook_label_frame)
         self.body.pack(expand=True, fill="both")
 
+        #Setting up navigation buttons
         def switch_tab(dir):
             total_number_of_tabs = len(self.showing["sections"])
             if total_number_of_tabs > 0:
@@ -679,14 +680,6 @@ class App(Component):
         self.label_frame = LabelFrame(self.current_script, text="Current Script with Options", underline=21)
         self.label_frame.pack(side="top", expand=True, fill="x")
 
-        # self.win = tk.Toplevel()
-        # self.win.title("General help for the configure script")
-        # self.win.geometry("800x500")
-        # output = run(self.program, "help")
-        # self.output = ScrolledText(self.win, state="normal", height=8, width=50)
-        # self.output.insert(1.0, output)
-        # self.output["state"] = "disabled"
-        # self.pack(self.output, fill="both", expand=True, anchor="w")
         self.current_command = ScrolledText(self.label_frame, height=4, state="normal")
         self.current_command.bind("<Key>", textEvent)
         self.current_command.bind("<Enter>", lambda e: self.setIsInCurrentCommand(True))
@@ -1158,7 +1151,6 @@ class LandingPage(Component):
 def main():
     logging.getLogger().setLevel(logging.DEBUG)
     parser = argparse.ArgumentParser()
-    enable_load = False
 
     default = "(default: %(default)s)"
     parser.add_argument("-s", "--script-file", default="./configure", help=f"script to add args to {default}")
@@ -1169,19 +1161,16 @@ def main():
     resource_folder = f'{os.path.dirname(os.path.realpath(__file__))}/resources'
     
     if args.build:
-        if enable_load:
             from load import load, write_help
             write_help(args.script_file)
             load()
-        else:
-            logging.warning(f"Build functionality is not enabled.  Not loading {args.script_file}.")
     
     config_file = args.config
     if not os.path.isfile(config_file):
         c = ChooseConfigure()
         c.get_frame().mainloop()
-        config_file = c.get_file()
-    if type(config_file) is str:
+        config_file = c.get_file() #Will return None if user chooses to use default values
+    if type(config_file) is str: 
         config_file = os.path.abspath(config_file) #Landing page will change cwd so we get abs path
     if os.path.exists(args.script_file):
         script_folder = os.path.dirname(os.path.abspath(args.script_file))
@@ -1189,6 +1178,7 @@ def main():
         script_folder = os.getcwd()
     l = LandingPage(parent=None, config_file=config_file, initial_dir=script_folder, resource_folder=resource_folder)
     l.get_frame().mainloop()
+    
     if not l.to_close:
         if l.open_advanced:
             a = App(config_file, l.program, resource_folder=resource_folder)
