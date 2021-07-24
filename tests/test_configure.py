@@ -1,9 +1,7 @@
 import pytest
 import os
 
-from main import string_to_bool, bool_to_string, run, get_configure_command
-
-
+from main import string_to_bool, bool_to_string, run, get_configure_command, Section, Data
 
 def test_configure_flag_true():
     program = "/home/cherpin/git/trick/configure"
@@ -57,6 +55,8 @@ def test_configure_flag_false():
     }
     
     cmd = get_configure_command(program, my_json)
+    print(cmd,"---",sep="")
+    print(expected,"---",sep="")
     assert cmd == expected
 
     my_json["sections"]["test"]["options"]["help"]["value"] = "false"
@@ -206,4 +206,4 @@ def test_unsupported_type():
     }
     with pytest.raises(RuntimeError) as e_info:
         cmd = get_configure_command("test", my_json)
-    assert e_info.value.args[0] == "In function call get_configure_command: Option type 'bad' in {'type': 'bad', 'value': ''} is not implemented yet."
+    assert e_info.value.args[0] == "Option type 'bad' in unsupported is not implemented yet."

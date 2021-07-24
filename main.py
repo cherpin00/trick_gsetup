@@ -27,10 +27,6 @@ import errno
 import ntpath
 import glob
 
-# from idlelib.ToolTip import *
-
-
-#TODO: Write test case for this function
 def QuoteForPOSIX(string): #Adapted from https://code.activestate.com/recipes/498202-quote-python-strings-for-safe-use-in-posix-shells/
     '''quote a string so it can be used as an argument in a  posix shell
 
@@ -49,48 +45,21 @@ def QuoteForPOSIX(string): #Adapted from https://code.activestate.com/recipes/49
     '''
 
     return "\\'".join("'" + p + "'" for p in string.split("'"))
-
-def get_configure_command(command, config_json, include_vars=False):
-    def get_with_catch(my_dict, key):
-        try:
-            return my_dict[key]
-        except KeyError as e:
-            raise RuntimeError(f"Required key {e} not found in the following json: {my_dict}")
-
-    sep = " "
+def get_configure_command(command: str, config_json: dict, include_vars=False):
     vars = ""
-    for section_name, section in get_with_catch(config_json, "sections").items():
-        for option_name, option in get_with_catch(section, "options").items():
-            if get_with_catch(option, "type") in ("bool", "flag"):
-                value = bool_to_string(string_to_bool(str(get_with_catch(option, "value"))))
-            elif get_with_catch(option, "type") in ("dir", "string"):
-                value = str(get_with_catch(option, "value"))
-                if value == "":
-                    continue
-            elif get_with_catch(option, "type") == "envvar":
-                value = str(get_with_catch(option, "value"))
-                if value == "":
-                    if option_name in os.environ:
-                        del os.environ[option_name]
-                else:
-                    os.environ[option_name] = value
-                    if include_vars:
-                        vars += f"{option_name} = {value}\n"
-                continue
-            elif get_with_catch(option, "type") in ("radio"):
-                value = str(get_with_catch(option, "value"))
+    data = Data(**config_json)
+    for section_name, section in data.sections._dict_().items():
+        s = Section(None, section_name, data)
+        for option in s.components.values():
+            value = option.get_option()
+            if option.type != "envvar":
+                command += f" {value}"
             else:
-                my_type = get_with_catch(option, "type")
-                raise RuntimeError(f"In function call get_configure_command: Option type '{my_type}' in {option} is not implemented yet.")
-            if value not in ("no"): #TODO: Check what possible values there are for false
-                #TODO: Should we add the no's to the comand
-                command += f"{sep}--{option_name}"
-                if option["type"] != "flag" and value not in ("EMPTY"): #TODO: Tell the developer this is a key word
-                    value = QuoteForPOSIX(value)
-                    command += f"={value}"
+                vars += value + "\n"
     if include_vars:
         command = vars + command
-    return command
+    return command.strip()
+
 
 def string_to_bool(string: str):
     if string.lower() in ("yes", "true"):
@@ -251,6 +220,12 @@ class Option(Component):
         
     def get_frame(self):
         return self.frame
+    
+    def get_option(self):
+        if self.value not in ("no", ""):
+            return f"--{self.name}={QuoteForPOSIX(self.value)}"
+        else:
+            return ""
 
 class ToolTip(object): #Adapted from https://stackoverflow.com/questions/20399243/display-message-when-hovering-over-something-with-mouse-cursor-in-python
 
@@ -353,6 +328,13 @@ class OptionBool(Option):
     def handler(self):
         logging.debug(f"Setting value to {self.bool.get()}.")
         self.value = "yes" if self.bool.get() else "no"
+    
+    def get_option(self):
+        value = string_to_bool(str(self.value))
+        if value:
+            return f"--{self.name}" + ("" if self.type == "flag" else f"={QuoteForPOSIX(bool_to_string(value))}")
+        else:
+            return ""
 
 class OptionString(OptionDir):
     def __init__(self, parent, section, name, data):
@@ -368,26 +350,20 @@ class OptionEnvVar(OptionDir):
         self.container["text"] = "ENV: " + self.container["text"]
         self.browse_button.pack_forget()
 
-        # self.value = "" if self.value == "default" else self.value
-        # self.label = self.name if self.label == "default" else self.label
+    def get_option(self):
+        value = str(self.value)
+        if value == "":
+            if self.name in os.environ:
+                del os.environ[self.name]
+            return ""
+        os.environ[self.name] = value
+        return f"{self.name} = {value}"
 
-        # self.tk_label = Label(self.get_frame(), text=self.label)
-        # self.pack(self.tk_label, side="left", pady=10)
-
-        # self.directory_entry = Entry(self.get_frame())
-        # self.directory_entry.bind('<KeyRelease>', self.handler)
-        # self.directory_entry.insert(0, self.value)
-        # self.pack(self.directory_entry, fill="both", expand=True, side="left")
-
-
-    # def handler(self, event):
-        # logging.debug(f"Setting value to {self.directory_entry.get()}")
-        # self.value = self.directory_entry.get()    
 
 class OptionRadio(Option):
     def __init__(self, parent, section, name: str, data: Data):
         super().__init__(parent, section, name, data, special_valid_params=["options"], special_required_params=[])
-        self.options = [] if self.options == "default" else self.options
+        self.options = Data(**{}) if self.options == "default" else self.options
         self.value = "" if self.value == "default" else self.value
 
         self.box = LabelFrame(self.get_frame(), text=f"{self.name} - {self.desc}")
@@ -507,7 +483,7 @@ class Section(Component):
 
 
 class App(Component):
-    def __init__(self, my_json_or_filename, program="/home/cherpin/git/trick/configure", resource_folder = f'{os.path.dirname(os.path.realpath(__file__))}/resources'):
+    def __init__(self, my_json_or_filename, program: str = "/home/cherpin/git/trick/configure", resource_folder: str = f'{os.path.dirname(os.path.realpath(__file__))}/resources') -> None:
         if type(my_json_or_filename) == str: #Handle a file name
             self.open(my_json_or_filename)
             self.filename = my_json_or_filename
