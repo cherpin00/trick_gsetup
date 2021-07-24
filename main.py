@@ -92,7 +92,7 @@ def get_configure_command(command, config_json, include_vars=False):
         command = vars + command
     return command
 
-def string_to_bool(string):
+def string_to_bool(string: str):
     if string.lower() in ("yes", "true"):
         return True
     else:
@@ -210,9 +210,14 @@ class Component:
             self.params.append(key)
     
     def get_hidden(self):
-        try:
-            return string_to_bool(self.hidden)
-        except:
+        if "hidden" in dir(self):
+            if type(self.hidden) is bool:
+                return self.hidden
+            elif type(self.hidden) is str:
+                return string_to_bool(self.hidden)
+            else:
+                raise RuntimeError("Hidden is not a String or a Boolean")
+        else:
             return False
 
     def pack(self, tk, **kargs):        
@@ -296,8 +301,7 @@ class OptionDir(Option):
         self.value = "" if self.value == "default" else self.value
 
         #Building GUI
-        self.container = self.get_frame()
-        self.container = LabelFrame(self.get_frame(), text=f"{self.label} - {self.desc}")
+        self.container = LabelFrame(self.get_frame(), text=f"{self.label}" + (f" - {self.desc}" if len(self.desc) != 0 else ""))
         self.pack(self.container, fill="both", expand=True)
         # self.label_tk = Label(self.container, text=self.label)
         # self.pack(self.label_tk, side="left")
@@ -337,10 +341,12 @@ class OptionBool(Option):
         self.label = self.name if self.label == "default" else self.label
     
         #Building GUI
+        self.container = Frame(self.get_frame())
+        self.container.pack(expand=True, fill="both")
         self.bool = BooleanVar(value = self.value)
-        self.check_button = Checkbutton(self.get_frame(), text=self.label, command=self.handler, variable=self.bool)
+        self.check_button = Checkbutton(self.container, text=self.label, command=self.handler, variable=self.bool)
         self.pack(self.check_button, side="left")
-        self.desc_label = Label(self.get_frame(), text = f": {self.desc}") #TODO: Make a pop up
+        self.desc_label = Label(self.container, text = f": {self.desc}" if len(self.desc) != 0 else "") #TODO: Make a pop up
         self.pack(self.desc_label, side="left")
         # CreateToolTip(self.check_button, self.desc)
     
@@ -560,9 +566,9 @@ class App(Component):
         navigation_frame = Frame(self.body)
         navigation_frame.pack(anchor="e")
 
-        tab_right_button = Button(navigation_frame, text="right", command=lambda: switch_tab(1)) #TODO: Make this a picture
+        tab_right_button = Button(navigation_frame, text="Next Tab", command=lambda: switch_tab(1)) #TODO: Make this a picture
         tab_right_button.pack(side="right")
-        tab_left_button = Button(navigation_frame, text="left", command=lambda: switch_tab(-1)) #TODO: Make this a picture
+        tab_left_button = Button(navigation_frame, text="Previous Tab", command=lambda: switch_tab(-1)) #TODO: Make this a picture
         tab_left_button.pack(side="right")
 
 
@@ -623,7 +629,7 @@ class App(Component):
             obj = getattr(getattr(self.source, "sections"), section)
             if len(getattr(obj, "options")._dict_()) > 0: #Note: not adding section if empty
                 self.sections[section] = Section(self.notebook, section, self.source)
-                CreateToolTip(self.sections[section].get_frame(), section)
+                # CreateToolTip(self.sections[section].get_frame(), section)
         
         self.previous_section_length = 0
 
@@ -782,7 +788,7 @@ class App(Component):
             self.showing["sections"][section] = {}
             self.showing["sections"][section]["options"] = {}
             for option in options: #TODO: Allow for double grouping
-                if (word != '' and not App.is_match(word, option, options[option].desc)) or (self.only_checked.get() and options[option].value in ("no", "")):
+                if (word != '' and not App.is_match(word, option, options[option].desc, options[option].label)) or (self.only_checked.get() and options[option].value in ("no", "")):
                     options[option].get_frame().pack_forget()
                     count_hidden += 1
                 else:

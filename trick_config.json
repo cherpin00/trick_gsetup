@@ -7,259 +7,328 @@
     "sections": {
         "Configuration:": {
             "options": {
-                "test": {
-                    "type": "dir",
-                    "value": ""
+                "help": {
+                    "desc": "display this help and exit",
+                    "type": "radio",
+                    "value": "no",
+                    "options" : {"short" : {"desc" : "display thee short help of all included packages."}, "long" : { "desc" : "dipslay the long version of the help."}}
                 },
-                "cxonfig-cache": {
-                    "desc": "alias for `--cache-file=config.cache'",
+                "version": {
+                    "desc": "display version information and exit",
                     "type": "flag",
                     "value": "no"
                 },
-                "help": {
-                    "desc": "display this help and exit",
+                "quiet": {
+                    "desc": "do not print `checking ...' messages",
+                    "label" : "quite mode",
                     "type": "flag",
-                    "value": "yes"
+                    "value": "no"
+                },
+                "config-file" : {
+                    "label" : "configuration cache file",
+                    "desc" : "file to cache test resuls in",
+                    "type" : "string"
+                },
+                "config-cache": {
+                    "desc": "set the configuration cache file to 'config.cache'",
+                    "type": "flag",
+                    "value": "no"
                 },
                 "no-create": {
                     "desc": "do not create output files",
                     "type": "flag",
                     "value": "no"
                 },
-                "quiet,": {
-                    "desc": "--silent   do not print `checking ...' messages",
-                    "type": "flag",
-                    "value": "no"
-                },
                 "srcdir": {
-                    "desc": "find the sources in DIR [configure dir or `..']",
+                    "desc": "directory to find the sources in [configure dir or '..']",
                     "type": "dir",
-                    "value": ""
+                    "value": "",
+                    "label": "source directory"
+                }
+            }
+        },
+        "Installation directories" : {
+            "options" : {
+                "prefix" : {
+                    "type" : "string",
+                    "desc" : "This is where we will install architecture-independent files.  Default value is '/usr/local'."
                 },
-                "version": {
-                    "desc": "display version information and exit",
-                    "type": "flag",
-                    "value": "no"
+                "exec-prefix" : {
+                    "type" : "string",
+                    "desc" : "This is where we will install architecture-dependent files.  Default value is set to [PREFIX].",
+                    "label" : "executive prefix"
                 }
             }
         },
         "Fine tuning of the installation directories:": {
             "options": {
                 "bindir": {
-                    "desc": "user executables [EPREFIX/bin]",
+                    "desc": "default is [executive prefix]/bin",
                     "type": "dir",
-                    "value": ""
-                },
-                "datadir": {
-                    "desc": "read-only architecture-independent data [DATAROOTDIR]",
-                    "type": "dir",
-                    "value": ""
-                },
-                "datarootdir": {
-                    "desc": "read-only arch.-independent data root [PREFIX/share]",
-                    "type": "dir",
-                    "value": ""
-                },
-                "docdir": {
-                    "desc": "documentation root [DATAROOTDIR/doc/trick]",
-                    "type": "dir",
-                    "value": ""
-                },
-                "dvidir": {
-                    "desc": "dvi documentation [DOCDIR]",
-                    "type": "dir",
-                    "value": ""
-                },
-                "htmldir": {
-                    "desc": "html documentation [DOCDIR]",
-                    "type": "dir",
-                    "value": ""
-                },
-                "includedir": {
-                    "desc": "C header files [PREFIX/include]",
-                    "type": "dir",
-                    "value": ""
-                },
-                "infodir": {
-                    "desc": "info documentation [DATAROOTDIR/info]",
-                    "type": "dir",
-                    "value": ""
-                },
-                "libdir": {
-                    "desc": "object code libraries [EPREFIX/lib]",
-                    "type": "dir",
-                    "value": ""
-                },
-                "libexecdir": {
-                    "desc": "program executables [EPREFIX/libexec]",
-                    "type": "dir",
-                    "value": ""
-                },
-                "localedir": {
-                    "desc": "locale-dependent data [DATAROOTDIR/locale]",
-                    "type": "dir",
-                    "value": ""
-                },
-                "localstatedir": {
-                    "desc": "modifiable single-machine data [PREFIX/var]",
-                    "type": "dir",
-                    "value": ""
-                },
-                "mandir": {
-                    "desc": "man documentation [DATAROOTDIR/man]",
-                    "type": "dir",
-                    "value": ""
-                },
-                "oldincludedir": {
-                    "desc": "C header files for non-gcc [/usr/include]",
-                    "type": "dir",
-                    "value": ""
-                },
-                "pdfdir": {
-                    "desc": "pdf documentation [DOCDIR]",
-                    "type": "dir",
-                    "value": ""
-                },
-                "psdir": {
-                    "desc": "ps documentation [DOCDIR]",
-                    "type": "dir",
-                    "value": ""
+                    "value": "",
+                    "label" : "user executables"
                 },
                 "sbindir": {
-                    "desc": "system admin executables [EPREFIX/sbin]",
+                    "desc": "default value is [executive prefix]/sbin",
                     "type": "dir",
-                    "value": ""
+                    "value": "",
+                    "label": "system admin executables"
                 },
-                "sharedstatedir": {
-                    "desc": "modifiable architecture-independent data [PREFIX/com]",
+                "libexecdir": {
+                    "desc": "default value is [EPREFIX]/libexec",
                     "type": "dir",
-                    "value": ""
+                    "value": "",
+                    "label":"program executables"
                 },
                 "sysconfdir": {
-                    "desc": "read-only single-machine data [PREFIX/etc]",
+                    "desc": "default value is [PREFIX]/etc",
+                    "type": "dir",
+                    "value": "",
+                    "label" : "read-only single-machine data"
+                },
+                "sharedstatedir": {
+                    "desc": "default value is [PREFIX]/com",
+                    "type": "dir",
+                    "value": "",
+                    "label" : "modifiable architecture-independent data"
+                },
+                "localstatedir": {
+                    "desc": "default value is [PREFIX]/var",
+                    "type": "dir",
+                    "value": "",
+                    "label": "modifiable single-machine data"
+                },
+                "libdir": {
+                    "desc": "default value is [EPREFIX]/lib",
+                    "type": "dir",
+                    "value": "",
+                    "label": "object code libraries"
+                },
+                "includedir": {
+                    "desc": "default value is [PREFIX]/include",
+                    "type": "dir",
+                    "value": "",
+                    "label" : "C header files"
+                },
+                "oldincludedir": {
+                    "desc": "default value is [/usr/include]",
+                    "type": "dir",
+                    "value": "",
+                    "label": "C header files for non-gcc"
+                },
+                "datarootdir": {
+                    "desc": "default value is [PREFIX]/share",
+                    "type": "dir",
+                    "value": "",
+                    "label":"read-only arch.-independent data root",
+                    "hidden": true
+                },
+                "datadir": {
+                    "desc": "default value is [PREFIX]/share",
+                    "type": "dir",
+                    "value": "",
+                    "label" : "read-only architecture-independent data"
+                },
+                "infodir": {
+                    "desc": "default value is [DATAROOTDIR]/info",
+                    "type": "dir",
+                    "value": "",
+                    "label" : "info documentation"
+                },
+                "localedir": {
+                    "desc": "default value is [DATAROOTDIR]/locale",
+                    "type": "dir",
+                    "value": "",
+                    "label": "locale-dependent data"
+                },
+                "mandir": {
+                    "desc": "default value is [DATAROOTDIR]/man",
+                    "type": "dir",
+                    "value": "",
+                    "label": "man documentation"
+                },
+                "docdir": {
+                    "desc": "default value is [DATAROOTDIR]/doc/trick",
+                    "type": "dir",
+                    "value": "",
+                    "label": "documentation root"
+                },
+                "htmldir": {
+                    "desc": "default value is [DOCDIR]",
+                    "type": "dir",
+                    "value": "",
+                    "label": "html documentation"
+                },
+                "dvidir": {
+                    "desc": "default value is [DOCDIR]",
+                    "type": "dir",
+                    "value": "",
+                    "label": "dvi documentation"
+                },
+                "pdfdir": {
+                    "desc": "default value is [DOCDIR]",
+                    "type": "dir",
+                    "value": "",
+                    "label": "pdf documentation"
+                },
+                "psdir": {
+                    "desc": "default value is [DOCDIR]",
+                    "type": "dir",
+                    "value": "",
+                    "label": "ps documentation"
+                }
+            }
+        },
+        "X features:": {
+            "options": {
+                "x-includes": {
+                    "desc": "where to put X include files",
+                    "type": "dir",
+                    "value": ""
+                },
+                "x-libraries": {
+                    "desc": "where to put X library files",
                     "type": "dir",
                     "value": ""
                 }
             }
         },
-        "Installation directories:": {
-            "options": {}
+        "System types:": {
+            "options": {
+                "build" : {
+                    "desc": "configure for building on ",
+                    "hidden" : true,
+                    "type" : "string"
+                },
+                "host": {
+                    "desc" : "host to corss-compile for",
+                    "label" : "corss compile host",
+                    "type" : "string"
+                }
+            }
         },
         "Optional Features:": {
             "options": {
+                "disable-option-checking":    {
+                    "desc": "--enable and --with options will be ignored if they are not recognized",
+                    "type": "flag",
+                    "value": "no",
+                    "label" : "ignore unrecognized options. "
+                },
                 "disable-FEATURE": {
                     "desc": "do not include FEATURE (same as --enable-FEATURE=no)",
                     "type": "flag",
-                    "value": "no"
+                    "value": "no",
+                    "hidden": true
                 },
-                "disable-option-checking": {
-                    "desc": "ignore unrecognized --enable/--with options",
-                    "type": "flag",
-                    "value": "no"
-                },
-                "enable-32bit": {
+                "32bit mode": {
                     "desc": "Force Trick and sims to compile 32bit",
                     "type": "flag",
                     "value": "no"
                 },
-                "enable-er7utils": {
-                    "desc": "use er7_utils (default is yes)",
+                "enable-offline": {
+                    "desc": "Compile Trick in offline mode. Un-tar the trickki-offline directory in TRICK_HOME to use this feature",
                     "type": "flag",
-                    "value": "yes"
-                },
-                "enable-java": {
-                    "desc": "use java (default is yes)",
-                    "type": "flag",
-                    "value": "no"
+                    "value": "no",
+                    "label": "offline mode"
                 },
                 "enable-mongoose": {
                     "desc": "Compile Trick with webserver capabilites.",
                     "type": "flag",
-                    "value": "no"
+                    "value": "no",
+                    "label" : "enable mongoose"
                 },
-                "enable-offline": {
-                    "desc": "Compile Trick in offline mode. Un-tar the",
+                "enable-java": {
+                    "desc": "use java (default is yes)",
                     "type": "flag",
-                    "value": "no"
+                    "value": "no",
+                    "label": "enable java"
+                },
+                "enable-er7utils": {
+                    "desc": "use er7_utils (default is yes)",
+                    "type": "flag",
+                    "value": "no",
+                    "label": "enable er7utils"
                 }
             }
         },
         "Optional Packages:": {
             "options": {
-                "with-bc635": {
-                    "desc": "BC635 root directory",
-                    "type": "dir",
-                    "value": ""
+                "with-x": {
+                    "desc": "",
+                    "type": "flag",
+                    "value": "no",
+                    "label": "Use the X Window System"
                 },
                 "with-dmtcp": {
-                    "desc": "DMTCP root directory",
+                    "desc": "",
                     "type": "dir",
-                    "value": ""
+                    "label": "DMTCP root directory"
                 },
                 "with-gsl": {
-                    "desc": "GSL root directory",
+                    "desc": "",
                     "type": "dir",
-                    "value": ""
+                    "label": "GSL root directory"
                 },
                 "with-gtest": {
-                    "desc": "GTEST root directory",
+                    "desc": "",
                     "type": "dir",
-                    "value": ""
+                    "label": "GTEST root directory"
                 },
                 "with-hdf5": {
-                    "desc": "HDF5 root directory",
                     "type": "dir",
-                    "value": ""
+                    "label": "HDF5 root directory"
                 },
                 "with-llvm": {
-                    "desc": "LLVM root directory",
                     "type": "dir",
-                    "value": ""
+                    "label": "LLVM root directory"
                 },
                 "with-python": {
-                    "desc": "python root directory",
                     "type": "dir",
-                    "value": ""
+                    "label": "python root directory"
                 },
                 "with-swig": {
-                    "desc": "path of directory containing the SWIG executable.",
+                    "desc": "",
                     "type": "dir",
-                    "value": ""
+                    "label": "path of directory containing the SWIG executable."
                 },
                 "with-tpro": {
-                    "desc": "TPRO root directory",
+                    "desc": "",
                     "type": "dir",
-                    "value": ""
+                    "label": "TPRO root directory"
                 },
                 "with-udunits": {
-                    "desc": "UDUnits root directory",
+                    "desc": "",
                     "type": "dir",
-                    "value": ""
+                    "label": ""
                 },
-                "with-x": {
-                    "desc": "use the X Window System",
+                "without-zlib": {
+                    "desc": "check to disable zlib usage completely",
                     "type": "flag",
-                    "value": "no"
+                    "value": "no",
+                    "label": "diable zlib"
                 },
                 "with-zlib": {
-                    "desc": "root directory path of zlib installation [defaults to",
+                    "desc": "root directory path of zlib installation [defaults to /usr/local or /usr if not found in /usr/local]",
                     "type": "dir",
-                    "value": ""
+                    "label": "zlib directory"
+                },
+                "with-bc635": {
+                    "desc": "",
+                    "type": "dir",
+                    "label": "BC635 root directory"
                 },
                 "without-PACKAGE": {
                     "desc": "do not use PACKAGE (same as --with-PACKAGE=no)",
                     "type": "flag",
-                    "value": "no"
+                    "value": "no",
+                    "hidden": true
                 },
-                "without-prepend-path": {
-                    "desc": "do not prepend to path (this is default)",
-                    "type": "flag",
-                    "value": "no"
-                },
-                "without-zlib": {
-                    "desc": "to disable zlib usage completely",
-                    "type": "flag",
-                    "value": "no"
+                "with-prepend-path": {
+                    "desc": "prepend this directory to path",
+                    "type": "dir",
+                    "value": "no",
+                    "label": "dir to prepend"
                 }
             }
         },
@@ -318,23 +387,6 @@
                 "LIBS": {
                     "desc": "libraries to pass to the linker, e.g. -l<library>",
                     "type": "envvar",
-                    "value": ""
-                }
-            }
-        },
-        "System types:": {
-            "options": {}
-        },
-        "X features:": {
-            "options": {
-                "x-includes": {
-                    "desc": "X include files are in DIR",
-                    "type": "dir",
-                    "value": ""
-                },
-                "x-libraries": {
-                    "desc": "X library files are in DIR",
-                    "type": "dir",
                     "value": ""
                 }
             }
