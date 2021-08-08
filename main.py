@@ -27,6 +27,8 @@ import errno
 import ntpath
 import glob
 
+from default_trick_config import default_trick_config
+
 def QuoteForPOSIX(string): #Adapted from https://code.activestate.com/recipes/498202-quote-python-strings-for-safe-use-in-posix-shells/
     '''quote a string so it can be used as an argument in a  posix shell
 
@@ -1017,10 +1019,7 @@ class ChooseConfigure:
         self.continue_button = Button(self.root, text="Continue", command=self.continue_func)
         self.continue_button.pack()
 
-        self.file = { #This is the default configuration
-            "sections" : {},
-            # "landing" : { "version" : 1.0}
-        }
+        self.file = default_trick_config
     
     def continue_func(self):
         self.root.destroy()
@@ -1192,22 +1191,22 @@ def main():
 
     default = "(default: %(default)s)"
     parser.add_argument("-s", "--script-file", default="./configure", help=f"script to add args to {default}")
-    parser.add_argument("-c", "--config", default=f"{os.path.dirname(os.path.realpath(__file__))}/sample_config.json", help=f"json file with gui options and settings {default}")
+    parser.add_argument("-c", "--config", default=f"{os.path.dirname(os.path.realpath(__file__))}/trick_config.json", help=f"json file with gui options and settings {default}")
     parser.add_argument("-b", "--build", action="store_true", default=False, help=f"guess the parameter choices from the scripts help output {default}")
     args = parser.parse_args()
 
     resource_folder = f'{os.path.dirname(os.path.realpath(__file__))}/resources'
     
     if args.build:
-            from load import load, write_help
-            write_help(args.script_file)
-            load()
+        from load import load, write_help
+        write_help(args.script_file)
+        load()
     
     config_file = args.config
     if not os.path.isfile(config_file):
-        c = ChooseConfigure()
-        c.get_frame().mainloop()
-        config_file = c.get_file() #Will return None if user chooses to use default values
+        #Config file does not exist so we create one with the default configuration
+        with open(config_file, "w") as f:
+            json.dump(default_trick_config, f, indent=4)
     if type(config_file) is str: 
         config_file = os.path.abspath(config_file) #Landing page will change cwd so we get abs path
     if os.path.exists(args.script_file):

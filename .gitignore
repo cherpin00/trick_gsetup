@@ -4,7 +4,6 @@ config.log
 config.status
 share/trick/makefiles/config_user.mk
 *.json
-!trick_config.json
 !tests/config_for_test_app_with_file.json
 build/*
 main

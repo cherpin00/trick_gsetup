@@ -1,4 +1,4 @@
-{
+default_trick_config = {
     "name": "Trick's Graphical Configuration",
     "landing": {
         "version": "1.0",
@@ -121,7 +121,7 @@
                     "type": "dir",
                     "value": "",
                     "label":"read-only arch.-independent data root",
-                    "hidden": true
+                    "hidden": True
                 },
                 "datadir": {
                     "desc": "default value is [PREFIX]/share",
@@ -197,7 +197,7 @@
             "options": {
                 "build" : {
                     "desc": "configure for building on ",
-                    "hidden" : true,
+                    "hidden" : True,
                     "type" : "string"
                 },
                 "host": {
@@ -219,7 +219,7 @@
                     "desc": "do not include FEATURE (same as --enable-FEATURE=no)",
                     "type": "flag",
                     "value": "no",
-                    "hidden": true
+                    "hidden": True
                 },
                 "32bit mode": {
                     "desc": "Force Trick and sims to compile 32bit",
@@ -322,7 +322,7 @@
                     "desc": "do not use PACKAGE (same as --with-PACKAGE=no)",
                     "type": "flag",
                     "value": "no",
-                    "hidden": true
+                    "hidden": True
                 },
                 "with-prepend-path": {
                     "desc": "prepend this directory to path",
