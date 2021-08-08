@@ -26,7 +26,9 @@ import time
 import errno
 import ntpath
 import glob
+import sys
 
+sys.path.append(os.path.dirname(os.path.realpath(__file__)))
 from default_trick_config import default_trick_config
 
 def QuoteForPOSIX(string): #Adapted from https://code.activestate.com/recipes/498202-quote-python-strings-for-safe-use-in-posix-shells/
