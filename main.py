@@ -45,7 +45,17 @@ def QuoteForPOSIX(string): #Adapted from https://code.activestate.com/recipes/49
     '''
 
     return "\\'".join("'" + p + "'" for p in string.split("'"))
+
 def get_configure_command(command: str, config_json: dict, include_vars=False):
+    """
+    Wrapper for get_configure command.  Will return a command with arguments given a dictinary.
+    """
+    return get_configure_command_old(command, config_json, include_vars)
+
+def get_configure_command_new(command: str, config_json: dict, include_vars=False):
+    """
+    This version is cleaner but is too slow.
+    """
     vars = ""
     data = Data(**config_json)
     for section_name, section in data.sections._dict_().items():
@@ -59,6 +69,52 @@ def get_configure_command(command: str, config_json: dict, include_vars=False):
     if include_vars:
         command = vars + command
     return command.strip()
+
+def get_configure_command_old(command, config_json, include_vars=False):
+    """
+    TODO: Rewrite to be fast and DRY
+    This version is less DRY but is much faster.
+    """
+    def get_with_catch(my_dict, key):
+        try:
+            return my_dict[key]
+        except KeyError as e:
+            raise RuntimeError(f"Required key {e} not found in the following json: {my_dict}")
+
+    sep = " "
+    vars = ""
+    for section_name, section in get_with_catch(config_json, "sections").items():
+        for option_name, option in get_with_catch(section, "options").items():
+            if get_with_catch(option, "type") in ("bool", "flag"):
+                value = bool_to_string(string_to_bool(str(get_with_catch(option, "value"))))
+            elif get_with_catch(option, "type") in ("dir", "string"):
+                value = str(get_with_catch(option, "value"))
+                if value == "":
+                    continue
+            elif get_with_catch(option, "type") == "envvar":
+                value = str(get_with_catch(option, "value"))
+                if value == "":
+                    if option_name in os.environ:
+                        del os.environ[option_name]
+                else:
+                    os.environ[option_name] = value
+                    if include_vars:
+                        vars += f"{option_name} = {value}\n"
+                continue
+            elif get_with_catch(option, "type") in ("radio"):
+                value = str(get_with_catch(option, "value"))
+            else:
+                my_type = get_with_catch(option, "type")
+                raise RuntimeError(f"In function call get_configure_command: Option type '{my_type}' in {option} is not implemented yet.")
+            if value not in ("no"): #TODO: Check what possible values there are for false
+                #TODO: Should we add the no's to the comand
+                command += f"{sep}--{option_name}"
+                if option["type"] != "flag" and value not in ("EMPTY"): #TODO: Tell the developer this is a key word
+                    value = QuoteForPOSIX(value)
+                    command += f"={value}"
+    if include_vars:
+        command = vars + command
+    return command
 
 
 def string_to_bool(string: str):
