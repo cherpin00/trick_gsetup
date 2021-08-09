@@ -50,77 +50,6 @@ def QuoteForPOSIX(string): #Adapted from https://code.activestate.com/recipes/49
 
     return "\\'".join("'" + p + "'" for p in string.split("'"))
 
-def get_configure_command(command: str, config_json: dict, include_vars=False):
-    """
-    Wrapper for get_configure command.  Will return a command with arguments given a dictinary.
-    """
-    return get_configure_command_old(command, config_json, include_vars)
-
-def get_configure_command_new(command: str, config_json: dict, include_vars=False):
-    """
-    This version is cleaner but is too slow.
-    """
-    vars = ""
-    data = Data(**config_json)
-    for section_name, section in data.sections._dict_().items():
-        s = Section(None, section_name, data)
-        for option in s.components.values():
-            value = option.get_option()
-            if option.type != "envvar":
-                command += f" {value}"
-            else:
-                vars += value + "\n"
-    if include_vars:
-        command = vars + command
-    return command.strip()
-
-def get_configure_command_old(command, config_json, include_vars=False):
-    """
-    TODO: Rewrite to be fast and DRY
-    This version is less DRY but is much faster.
-    """
-    def get_with_catch(my_dict, key):
-        try:
-            return my_dict[key]
-        except KeyError as e:
-            raise RuntimeError(f"Required key {e} not found in the following json: {my_dict}")
-
-    sep = " "
-    vars = ""
-    for section_name, section in get_with_catch(config_json, "sections").items():
-        for option_name, option in get_with_catch(section, "options").items():
-            if get_with_catch(option, "type") in ("bool", "flag"):
-                value = bool_to_string(string_to_bool(str(get_with_catch(option, "value"))))
-            elif get_with_catch(option, "type") in ("dir", "string"):
-                value = str(get_with_catch(option, "value"))
-                if value == "":
-                    continue
-            elif get_with_catch(option, "type") == "envvar":
-                value = str(get_with_catch(option, "value"))
-                if value == "":
-                    if option_name in os.environ:
-                        del os.environ[option_name]
-                else:
-                    os.environ[option_name] = value
-                    if include_vars:
-                        vars += f"{option_name} = {value}\n"
-                continue
-            elif get_with_catch(option, "type") in ("radio"):
-                value = str(get_with_catch(option, "value"))
-            else:
-                my_type = get_with_catch(option, "type")
-                raise RuntimeError(f"In function call get_configure_command: Option type '{my_type}' in {option} is not implemented yet.")
-            if value not in ("no"): #TODO: Check what possible values there are for false
-                #TODO: Should we add the no's to the comand
-                command += f"{sep}--{option_name}"
-                if option["type"] != "flag" and value not in ("EMPTY"): #TODO: Tell the developer this is a key word
-                    value = QuoteForPOSIX(value)
-                    command += f"={value}"
-    if include_vars:
-        command = vars + command
-    return command
-
-
 def string_to_bool(string: str):
     if string.lower() in ("yes", "true"):
         return True
@@ -417,6 +346,8 @@ class OptionEnvVar(OptionDir):
                 del os.environ[self.name]
             return ""
         os.environ[self.name] = value
+        if os.environ[self.name] != value: #TODO: Find a reliable way to get the env var.  Example with spaces in name is not working.
+            raise RuntimeError(f"Environment variable error. Cannont set {self.name} to {value}.")
         return f"{self.name} = {value}"
 
 
@@ -541,6 +472,18 @@ class Section(Component):
     def scroll_down(self):
         self._scroll(-1)
 
+def get_configure_command(command: str, sections: dict, include_vars=False):
+    vars = ""
+    for section in sections.values():
+        for option in section.components.values():
+            value = option.get_option()
+            if option.type != "envvar":
+                command += f" {value}"
+            else:
+                vars += value + "\n"
+    if include_vars:
+        command = vars + command
+    return command.strip()
 
 class App(Component):
     def __init__(self, my_json_or_filename, program: str = "/home/cherpin/git/trick/configure", resource_folder: str = f'{os.path.dirname(os.path.realpath(__file__))}/resources') -> None:
@@ -781,7 +724,8 @@ class App(Component):
     def build_current_command(self, e=None):
         # self.current_command["state"] = "normal"
         if not self.isInCurrentCommand:
-            text = get_configure_command(self.program, self.source._dict_(), include_vars=True)
+            # text = get_configure_command(self.program, self.source._dict_(), include_vars=True)
+            text = get_configure_command(self.program, self.sections, include_vars=True)
             self.current_command.delete(1.0, "end")
             self.current_command.insert(1.0, text)
         # self.current_command["state"] = "disabled"
@@ -857,10 +801,9 @@ class App(Component):
     def execute(self, source=None, autoRun=False, parent=None, answer=None):
         self.set_status("Running script")
         if source == None:
-            cmd = get_configure_command(self.program, self.source._dict_())
+            cmd = get_configure_command(self.program, self.sections)
         else:
-            cmd = get_configure_command(self.program, source._dict_())
-        # RunCommand(self, cmd, autoRun=autoRun)
+            raise RuntimeError("Not implemented with new get_configure_command")
         if not answer:
             answer = messagebox.askyesno(title="Confirmation", message=f"Would you like to configure trick with your chosen options?")
             
@@ -1043,8 +986,10 @@ class ChooseConfigure:
         return self.file
 
 def execute(parent, source, program, autoRun=False, answer=None):
-        cmd = get_configure_command(program, source._dict_())
-        # RunCommand(self, cmd, autoRun=autoRun)
+        sections = {}
+        for section in source.sections._dict_():
+            sections[section] = Section(None, section.name, section.options)
+        cmd = get_configure_command(program, sections)
         if not answer:
             answer = messagebox.askyesno(title="Confirmation", message=f"Are you sure that you want to run the following command:\n{cmd}")
             
@@ -1188,7 +1133,11 @@ class LandingPage(Component):
         
         
 def main():
-    logging.getLogger().setLevel(logging.DEBUG)
+    logging.basicConfig(
+        format='%(asctime)s %(levelname)-8s %(message)s',
+        level=logging.DEBUG,
+        datefmt='%Y-%m-%d %H:%M:%S')
+
     parser = argparse.ArgumentParser()
 
     default = "(default: %(default)s)"
@@ -1223,7 +1172,7 @@ def main():
             a = App(config_file, l.program, resource_folder=resource_folder)
             a.get_frame().mainloop()
         else:
-            execute(None, Data(sections=Data()), l.program, autoRun=True, answer=True)
+            execute(None, Data(sections=Data()), l.program, autoRun=True, answer=True) #TODO: Test this.
 
 if __name__ == "__main__":
     main()
