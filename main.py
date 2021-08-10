@@ -389,7 +389,7 @@ class Section(Component):
             parent.add(self.get_frame(), text=section)
         
         options = getattr(self.source, "options")._dict_()
-        for option in options: #TODO: Don't repeat this logic in get_configure_command
+        for option in options:
             obj = getattr(getattr(self.source, "options"), option)
             my_type = obj.type
             if my_type == "dir":
@@ -473,16 +473,19 @@ class Section(Component):
         self._scroll(-1)
 
 def get_configure_command(command: str, sections: dict, include_vars=False):
-    vars = ""
+    vars = []
+    args = []
     for section in sections.values():
         for option in section.components.values():
             value = option.get_option()
-            if option.type != "envvar":
-                command += f" {value}"
-            else:
-                vars += value + "\n"
+            if value != "":
+                if option.type != "envvar":
+                    args.append(value)
+                else:
+                    vars.append(value)
+    command = command + " " +  " ".join(args)
     if include_vars:
-        command = vars + command
+        command = "\n".join(vars) + "\n" + command
     return command.strip()
 
 class App(Component):
@@ -1133,19 +1136,26 @@ class LandingPage(Component):
         
         
 def main(argv=[]):
-    logging.basicConfig(
-        format='%(asctime)s %(levelname)-8s %(message)s',
-        level=logging.DEBUG,
-        datefmt='%Y-%m-%d %H:%M:%S')
-
     parser = argparse.ArgumentParser()
 
     default = "(default: %(default)s)"
     parser.add_argument("-s", "--script-file", default="./configure", help=f"script to add args to {default}")
     parser.add_argument("-c", "--config", default=f"{os.path.dirname(os.path.realpath(__file__))}/trick_config.json", help=f"json file with gui options and settings {default}")
     parser.add_argument("-b", "--build", action="store_true", default=False, help=f"guess the parameter choices from the scripts help output {default}")
+    parser.add_argument('-v', '--verbose', action='count', default=0, help=f"Increase logging level.  {default}")
     args = parser.parse_args(argv)
 
+    if args.verbose == 0:
+        log_level = 30 #This is the default logging level
+    else:
+        log_level = 60 - args.verbose*10
+    
+    logging.basicConfig(
+        format='%(asctime)s %(levelname)-8s %(message)s',
+        level=log_level,
+        datefmt='%Y-%m-%d %H:%M:%S')
+    logging.debug(f"Logging level is set to {log_level}")
+    
     resource_folder = f'{os.path.dirname(os.path.realpath(__file__))}/resources'
     
     if args.build:
