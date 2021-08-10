@@ -28,6 +28,7 @@ import ntpath
 import glob
 import sys
 
+
 sys.path.append(os.path.dirname(os.path.realpath(__file__)))
 from default_trick_config import default_trick_config
 
@@ -1015,7 +1016,7 @@ def execute(parent, source, program, autoRun=False, answer=None):
             win.mainloop()
 
 class LandingPage(Component):
-    def __init__(self, parent=None, config_file="./config.json", initial_dir=os.getcwd(), resource_folder = f'{os.path.dirname(os.path.realpath(__file__))}/resources') -> None:
+    def __init__(self, parent=None, config_file="./config.json", program="configure", initial_dir=os.getcwd(), resource_folder = f'{os.path.dirname(os.path.realpath(__file__))}/resources') -> None:
         if parent:
             self.root = parent
         else:
@@ -1037,6 +1038,7 @@ class LandingPage(Component):
         super().__init__(parent, app_json.get("name", "landing"), self.data, special_valid_params=["version", "desc"], special_required_params=[]) #Note: there should be no required params for Landing because landing itself is not required
 
         self.resource_folder = resource_folder
+        self.program = program
 
         #Set default values
         self.version = "x.x" if self.version == "default" else self.version 
@@ -1108,13 +1110,18 @@ class LandingPage(Component):
         except:
             messagebox.showerror(title="Invalid directory", message=f"{self.folder_location.get()} is not a valid directory")
             return False
-        arr = glob.glob("configure")
+        arr = glob.glob(self.program)
+        which = shutil.which(self.program)
         if len(arr) > 0:
             self.program = os.path.abspath(arr[0])
             return True
         else:
+            if which:
+                self.program = which
+                return True
+            self.program = None
             os.chdir(curdir)
-            messagebox.showerror(title="Wrong home directory", message=f"No configure file found in location: {self.folder_location.get()}.  Please enter your trick home directory.")
+            messagebox.showerror(title="Wrong home directory", message=f"No configure file found in location: {self.folder_location.get()}.  Please enter your trick home directory.") #TODO: Don't hard code this message
             return False
 
     def configure(self):
@@ -1141,7 +1148,7 @@ def main(argv=[]):
     default = "(default: %(default)s)"
     parser.add_argument("-s", "--script-file", default="./configure", help=f"script to add args to {default}")
     parser.add_argument("-c", "--config", default=f"{os.path.dirname(os.path.realpath(__file__))}/trick_config.json", help=f"json file with gui options and settings {default}")
-    parser.add_argument("-b", "--build", action="store_true", default=False, help=f"guess the parameter choices from the scripts help output {default}")
+    parser.add_argument("-b", "--build", action="store_true", default=False, help=f"guess the parameter choices from the scripts help output.  Use '-c config.json' to use these parameters. {default}")
     parser.add_argument('-v', '--verbose', action='count', default=0, help=f"Increase logging level.  {default}")
     args = parser.parse_args(argv)
 
@@ -1174,7 +1181,7 @@ def main(argv=[]):
         script_folder = os.path.dirname(os.path.abspath(args.script_file))
     else:
         script_folder = os.getcwd()
-    l = LandingPage(parent=None, config_file=config_file, initial_dir=script_folder, resource_folder=resource_folder)
+    l = LandingPage(parent=None, config_file=config_file, program=args.script_file, initial_dir=script_folder, resource_folder=resource_folder)
     l.get_frame().mainloop()
     
     if not l.to_close:
