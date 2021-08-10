@@ -1132,7 +1132,7 @@ class LandingPage(Component):
         return self.root
         
         
-def main():
+def main(argv=[]):
     logging.basicConfig(
         format='%(asctime)s %(levelname)-8s %(message)s',
         level=logging.DEBUG,
@@ -1144,7 +1144,7 @@ def main():
     parser.add_argument("-s", "--script-file", default="./configure", help=f"script to add args to {default}")
     parser.add_argument("-c", "--config", default=f"{os.path.dirname(os.path.realpath(__file__))}/trick_config.json", help=f"json file with gui options and settings {default}")
     parser.add_argument("-b", "--build", action="store_true", default=False, help=f"guess the parameter choices from the scripts help output {default}")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     resource_folder = f'{os.path.dirname(os.path.realpath(__file__))}/resources'
     
@@ -1175,4 +1175,4 @@ def main():
             execute(None, Data(sections=Data()), l.program, autoRun=True, answer=True) #TODO: Test this.
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])
