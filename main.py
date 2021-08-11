@@ -401,39 +401,7 @@ class OptionRadio(Option):
         elif self.value not in ("no", ""):
             return f"--{self.name}={QuoteForPOSIX(self.value)}"
         else:
-            return ""
-
-class OptionSuper(Option):
-    def __init__(self, parent, section, name: str, data: Data):
-        super().__init__(parent, section, name, data, special_valid_params=["options"], special_required_params=[])
-        self.options = Data(**{}) if self.options == "default" else self.options
-        self.value = "" if self.value == "default" else self.value
-
-        self.box = LabelFrame(self.get_frame(), text=f"{self.name} - {self.desc}")
-        self.pack(self.box, side="left")
-
-        self.variable = StringVar(value=self.value)
-        source = Data(**{
-            "sections" : {
-                "section" : {
-                    "options" : self.options._dict_()
-                }
-            }
-        })
-        self.section = Section(self.box, "section", source)
-        self.section.get_frame().pack()
-
-    def handler(self):
-        if self.variable.get() == self.value:
-            self.variable.set("")
-        logging.debug(f"Setting value to {self.variable.get()}")
-        self.value = self.variable.get()
-    
-    def get_option(self):
-        value = get_configure_command("", {"section" : self.section } )
-        return value
-
-            
+            return ""            
 
 class Section(Component):
     def __init__(self, parent, section, data:Data): #TODO: Figure out if I can pass in data instead of making it global
@@ -463,8 +431,6 @@ class Section(Component):
                 self.components[option] = OptionRadio(self.get_scrollable(), section, option, data)
             elif my_type == "string":
                 self.components[option] = OptionString(self.get_scrollable(), section, option, data)
-            elif my_type == "super":
-                self.components[option] = OptionSuper(self.get_scrollable(), section, option, data)
             else:
                 raise RuntimeError(f"Option type '{my_type}' in {option} is not implemented yet.")
             
@@ -703,7 +669,6 @@ class App(Component):
 
     def build_search_bar(self, parent):
         #Search box
-        # SearchBox(self).get_frame().pack(anchor="e")
         self.outer_search_box = LabelFrame(parent, text="Filter Options")
         self.outer_search_box.pack(side="left", anchor="n", fill="x", expand=1)
 
@@ -975,126 +940,10 @@ class App(Component):
     
     def is_saved(self):
         # return DeepDiff(self.original_dict, self.data._dict_())
-        return self.original_dict == self.data._dict_()
-        
-class RunCommand:
-    def __init__(self, parent, command, autoRun = False) -> None:
-        self.win = tk.Toplevel()
-        # sys.stderr = Stderr(self.win)
-        self.parent = parent
-        self.command = command
-        self.win.title("Running command")
-        self.title = Text(self.win, height=3)
-        self.title.insert(1.0, f"Click run to run the folling command:\n{command}")
-        self.pack(self.title, anchor="w", expand=False, fill="x")
-        self.run_button = Button(self.win, text="run", command=self.run)
-        self.pack(self.run_button, anchor="w")
-        self.output = ScrolledText(self.win, state="disabled", height=8, width=50)
-        self.pack(self.output, fill="both", expand=True, anchor="w")
-        self.quit_button_and_save = Button(self.win, text="Quit and Save", command=self.quit_and_save)
-        self.pack(self.quit_button_and_save, anchor="w")
-        self.quit_button = Button(self.win, text="Quit", command=self.quit)
-        self.pack(self.quit_button, anchor="w")
+        return self.original_dict == self.data._dict_()        
 
-        if autoRun:
-            self.run()
-
-        self.win.bind("<Alt-r>", lambda e: self.run())
-        self.win.bind("<Alt-q>", lambda e: self.quit())
-        self.win.bind("<Alt-s>", lambda e: self.quit())
-    
-    def pack(self, tk, **kargs):
-        tk.pack(kargs)
-    
-    def grid(self, tk, **kargs):
-        tk.grid(kargs)
-
-    def quit(self):
-        self.win.destroy()
-    
-    def quit_and_save(self):
-        self.parent.save()
-        self.win.destroy()
-
-    def run(self):
-        stdout = run(self.command)
-        self.display(stdout)
-    
-    def display(self, msg):
-        self.output.configure(state="normal")
-        self.output.insert("end", msg)
-        self.output.configure(state="disabled")
-        self.output.yview("end")
-
-class SearchBox:
-    def __init__(self, parent:App) -> None:
-        self.parent = parent
-        
-        self.top = Frame(self.parent.get_frame())
-
-        self.search_box = LabelFrame(self.top, text="Filter Options")
-        self.search_box.rowconfigure(0, weight=1)
-        self.search_box.columnconfigure(0, weight=1)
-
-        # self.done_button = Button(self.search_box, text="Continue", command=self.my_continue)
-        # CreateToolTip(self.done_button, "Continue to run and save screen.")
-        # self.done_button.grid(row=0,column=2, sticky="e")
-        
-        self.search_entry = Entry(self.search_box)
-        self.search_entry.bind("<KeyRelease>", self.parent.call_search)
-        CreateToolTip(self.search_entry, "Search for a specific option.")
-        self.search_entry.grid(row=0, column=1, sticky="e")
-
-        self.search_label = Label(self.search_box, text = "Search for options:")
-        self.search_label.grid(row=0, column=0, sticky="e")
-
-        self.search_box.pack(side="top", anchor="e", expand=False, fill="x")
-    
-    def get_frame(self):
-        return self.top
-
-class CurrentBox:
-    def __init__(self, parent:App) -> None:
-        self.parent = parent
-        
-
-class ChooseConfigure:
-    def __init__(self, parent=None) -> None:
-        if parent is None:
-            self.root = Tk()
-        else:
-            self.root = parent
-        
-        self.label = Label(text="Config file not found.  Please click browse to find your config file or click continue to use the default.")
-        self.label.pack()
-        
-        self.dir = ""
-        self.browse_button = Button(self.root, text="Browse", command=self.browse)
-        self.browse_button.pack()
-
-        self.continue_button = Button(self.root, text="Continue", command=self.continue_func)
-        self.continue_button.pack()
-
-        self.file = default_trick_config
-    
-    def continue_func(self):
-        self.root.destroy()
-
-    def get_frame(self):
-        return self.root
-    
-    def browse(self):
-        initDir=os.getcwd()
-        if not os.path.isdir(initDir):
-            messagebox.showerror("Error", f'Specified directory not found.  Value was:{"(Empty)" if initDir=="" else initDir}')
-            initDir=""
-        file = filedialog.askopenfilename(initialdir=initDir) #TODO: Fix this logic
-        if not dir in ("", ()): #askdirectory can return an empty tuple(Escape pressed) or an empty string(Cancel pressed)
-            self.file = file
-        self.root.destroy()
-    
-    def get_file(self):
-        return self.file
+class Output():
+    pass
 
 def execute(parent, source, program, autoRun=False, answer=None):
         sections = {}
