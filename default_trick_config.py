@@ -26,7 +26,7 @@ default_trick_config = {
                 },
                 "config-file" : {
                     "label" : "configuration cache file",
-                    "desc" : "file to cache test resuls in",
+                    "desc" : "file to cache test results in",
                     "type" : "string"
                 },
                 "config-cache": {
@@ -215,41 +215,31 @@ default_trick_config = {
                     "value": "no",
                     "label" : "ignore unrecognized options. "
                 },
-                "disable-FEATURE": {
-                    "desc": "do not include FEATURE (same as --enable-FEATURE=no)",
-                    "type": "flag",
-                    "value": "no",
-                    "hidden": True
-                },
                 "32bit mode": {
                     "desc": "Force Trick and sims to compile 32bit",
                     "type": "flag",
-                    "value": "no"
                 },
                 "enable-offline": {
-                    "desc": "Compile Trick in offline mode. Un-tar the trickki-offline directory in TRICK_HOME to use this feature",
+                    "desc": "Compile Trick in offline mode. Un-tar the trick's-offline directory in TRICK_HOME to use this feature",
                     "type": "flag",
                     "value": "no",
                     "label": "offline mode"
                 },
-                "enable-mongoose": {
-                    "desc": "Compile Trick with webserver capabilites.",
+                "disable-civet": {
+                    "desc": "Compile Trick without webserver capabilities.",
                     "type": "flag",
-                    "value": "no",
-                    "label" : "enable mongoose"
+                    "label" : "disable mongoose"
                 },
-                "enable-java": {
-                    "desc": "use java (default is yes)",
+                "disable-java": {
+                    "desc": "disable the use java",
                     "type": "flag",
-                    "value": "no",
-                    "label": "enable java"
+                    "label": "disable java"
                 },
-                "enable-er7utils": {
-                    "desc": "use er7_utils (default is yes)",
+                "disable-er7utils": {
+                    "desc": "disable the use of er7 utils",
                     "type": "flag",
-                    "value": "no",
-                    "label": "enable er7utils"
-                }
+                    "label": "disable er7utils"
+                },
             }
         },
         "Optional Packages:": {
@@ -317,12 +307,6 @@ default_trick_config = {
                     "desc": "",
                     "type": "dir",
                     "label": "BC635 root directory"
-                },
-                "without-PACKAGE": {
-                    "desc": "do not use PACKAGE (same as --with-PACKAGE=no)",
-                    "type": "flag",
-                    "value": "no",
-                    "hidden": True
                 },
                 "with-prepend-path": {
                     "desc": "prepend this directory to path",
