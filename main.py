@@ -872,37 +872,19 @@ class App(Component):
     def get_frame(self):
         return self.root
     
-    def execute(self, source=None, autoRun=False, parent=None, answer=None):
+    def execute(self, answer=None, on_done=None):
         self.set_status("Running script")
-        if source == None:
-            cmd = get_configure_command(self.program, self.sections)
-        else:
-            raise RuntimeError("Not implemented with new get_configure_command")
         if not answer:
             answer = messagebox.askyesno(title="Confirmation", message=f"Would you like to configure trick with your chosen options?")
-            
+        
         if answer:
-            output = run(cmd)
-            self.win = tk.Tk()
-            def quit():
-                self.win.destroy()
-                self.root.destroy()
-            self.win.title("Script's output")
-            set_widget_geometry(self.win)
-            self.output = ScrolledText(self.win, state="normal", height=8, width=50)
-            self.output.bind("<Key>", textEvent)
-            self.output.insert(1.0, output)
-            self.output.pack(fill="both", expand=True, anchor="w")
-            self.finish_button = Button(self.win, text="Finished", command=quit)
-            self.finish_button.pack(anchor="e")
-            # self.root.destroy() #TODO: Check for a successfull output.
             self.save()
-            # self.set_status()
-            self.win.mainloop()
-        # self.save()
+            output = Output(self.program, self.sections, on_done=self.root.destroy)
+            output.get_frame().mainloop()
         else:
             self.set_status()
-
+        
+            
     def save(self, filename=None):
         date = int(time.mktime(datetime.datetime.now().timetuple()))
         self.time_stamp.value = date
@@ -943,33 +925,31 @@ class App(Component):
         return self.original_dict == self.data._dict_()        
 
 class Output():
-    pass
-
-def execute(parent, source, program, autoRun=False, answer=None):
-        sections = {}
-        for section in source.sections._dict_():
-            sections[section] = Section(None, section.name, section.options)
+    def __init__(self, program, sections, on_done=None):
+        self.root = tk.Tk()
+        self.on_done = on_done
         cmd = get_configure_command(program, sections)
-        if not answer:
-            answer = messagebox.askyesno(title="Confirmation", message=f"Are you sure that you want to run the following command:\n{cmd}")
-            
-        if answer:
-            output_txt = run(cmd)
-            win = tk.Tk()
-            def quit():
-                win.destroy()
-                if parent:
-                    parent.destroy()
-            win.title("Script's output")
-            set_widget_geometry(win)
-            output = ScrolledText(win, state="normal", height=8, width=50)
-            output.bind("<Key>", textEvent)
-            output.insert(1.0, output_txt)
-            output.pack(fill="both", expand=True, anchor="w")
-            finish_button = Button(win, text="Finished", command=quit)
-            finish_button.pack(anchor="e")
-            # self.save()
-            win.mainloop()
+        
+        output = run(cmd)
+        output = f"{cmd}\n\n" + output
+
+        self.root.title("Script's output")
+        set_widget_geometry(self.root)
+        self.output = ScrolledText(self.root, state="normal", height=8, width=50)
+        self.output.bind("<Key>", textEvent)
+        self.output.insert(1.0, output)
+        self.output.pack(fill="both", expand=True, anchor="w")
+        self.finish_button = Button(self.root, text="Finished", command=self.quit)
+        self.finish_button.pack(anchor="e")
+    
+    def get_frame(self):
+        return self.root
+
+    def quit(self):
+        self.root.destroy()
+        if self.on_done:
+            self.on_done()
+
 
 class LandingPage(Component):
     def __init__(self, parent=None, config_file="./config.json", program="configure", initial_dir=os.getcwd(), resource_folder = f'{os.path.dirname(os.path.realpath(__file__))}/resources') -> None:
@@ -1152,9 +1132,11 @@ def main(argv=[]):
             a = App(config_file, landingPage.program, resource_folder=resource_folder)
             a.get_frame().mainloop()
         else:
-            # a = App(default_trick_config, landingPage.program, resource_folder=resource_folder, back_up_filename=config_file)
-            # a.execute(answer=True)
-            execute(None, Data(sections=Data()), landingPage.program, autoRun=True, answer=True) #TODO: Test this.
+            a = App(default_trick_config, landingPage.program, resource_folder=resource_folder, back_up_filename=config_file)
+            a.root.destroy()
+            a.save()
+            output = Output(landingPage.program, a.sections)
+            output.get_frame().mainloop()
 
 if __name__ == "__main__":
     main(sys.argv[1:])
