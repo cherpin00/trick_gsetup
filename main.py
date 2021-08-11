@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # import PIL
-from posixpath import curdir
+from posixpath import basename, curdir
 import tkinter
 # import ttkthemes
 
@@ -382,15 +382,56 @@ class OptionRadio(Option):
         for key, obj in self.options._dict_().items():
             desc = obj.get("desc", "")
             value = obj.get("value", key)
+            label = obj.get("label", "")
+            if label == "":
+                label = key
             if len(desc) > 0:
                 desc = " - " + desc
-            self.pack(Radiobutton(self.box, text=f"{key}{desc}", variable = self.variable, value=value, command=lambda: self.handler()), anchor="w")
+            self.pack(Radiobutton(self.box, text=f"{label}{desc}", variable = self.variable, value=value, command=lambda: self.handler()), anchor="w")
 
     def handler(self):
         if self.variable.get() == self.value:
             self.variable.set("")
         logging.debug(f"Setting value to {self.variable.get()}")
         self.value = self.variable.get()
+    
+    def get_option(self):
+        if self.value.lower() == "empty":
+            return f"--{self.name}"
+        elif self.value not in ("no", ""):
+            return f"--{self.name}={QuoteForPOSIX(self.value)}"
+        else:
+            return ""
+
+class OptionSuper(Option):
+    def __init__(self, parent, section, name: str, data: Data):
+        super().__init__(parent, section, name, data, special_valid_params=["options"], special_required_params=[])
+        self.options = Data(**{}) if self.options == "default" else self.options
+        self.value = "" if self.value == "default" else self.value
+
+        self.box = LabelFrame(self.get_frame(), text=f"{self.name} - {self.desc}")
+        self.pack(self.box, side="left")
+
+        self.variable = StringVar(value=self.value)
+        source = Data(**{
+            "sections" : {
+                "section" : {
+                    "options" : self.options._dict_()
+                }
+            }
+        })
+        self.section = Section(self.box, "section", source)
+        self.section.get_frame().pack()
+
+    def handler(self):
+        if self.variable.get() == self.value:
+            self.variable.set("")
+        logging.debug(f"Setting value to {self.variable.get()}")
+        self.value = self.variable.get()
+    
+    def get_option(self):
+        value = get_configure_command("", {"section" : self.section } )
+        return value
 
             
 
@@ -422,6 +463,8 @@ class Section(Component):
                 self.components[option] = OptionRadio(self.get_scrollable(), section, option, data)
             elif my_type == "string":
                 self.components[option] = OptionString(self.get_scrollable(), section, option, data)
+            elif my_type == "super":
+                self.components[option] = OptionSuper(self.get_scrollable(), section, option, data)
             else:
                 raise RuntimeError(f"Option type '{my_type}' in {option} is not implemented yet.")
             
@@ -509,19 +552,19 @@ def get_configure_command(command: str, sections: dict, include_vars=False):
     return command.strip()
 
 class App(Component):
-    def __init__(self, my_json_or_filename, program: str = "/home/cherpin/git/trick/configure", resource_folder: str = f'{os.path.dirname(os.path.realpath(__file__))}/resources') -> None:
+    def __init__(self, my_json_or_filename, program: str = "/home/cherpin/git/trick/configure", resource_folder: str = f'{os.path.dirname(os.path.realpath(__file__))}/resources', back_up_filename=None) -> None:
         if type(my_json_or_filename) == str: #Handle a file name
             self.open(my_json_or_filename)
             self.filename = my_json_or_filename
         elif type(my_json_or_filename == dict): #Handle a dictionary object
-            self.filename = None
+            self.filename = back_up_filename #Allows us to still save to a file when we are passing in json as our config options.
             self.data = Data(**my_json_or_filename)
             self.my_json = my_json_or_filename
         else:
             raise RuntimeError(f"Invalid parameter my_json_or_file: {my_json_or_filename}.")
 
         self.trick_home = os.path.dirname(program)
-        self.output_file = "config_user.mk"
+        self.output_file = os.path.join(self.trick_home, "share", "trick", "makefiles", "config_user.mk")
         self._program = program
         self.resource_folder = resource_folder
 
@@ -609,6 +652,8 @@ class App(Component):
         if msg is None:
             msg = f"Config file: {self.filename}"
         self._status.set("Status - " + msg)
+        self.status_label.pack(side="left")
+        self.status_label.pack()
 
     def add_shortcuts(self):
         self.root.bind(f"<Alt-h>", lambda e: self.show_help())
@@ -689,19 +734,22 @@ class App(Component):
     
     def get_match_status(self):
         try:
-            self.last_update_time = int(os.path.getmtime(os.path.join(self.trick_home, "share", "trick", "makefiles", self.output_file)))
+            self.last_update_time = int(os.path.getmtime(self.output_file))
         except FileNotFoundError:
             self.last_update_time = -1
+            logging.info(f"Output file, {self.output_file}, cannot be found.")
         
         try:
+            logging.info(f"Comparing timestamps of output file, {self.output_file}, and config file, {self.filename}.")
             if self.filename != None:
                 self.config_update_time = int(os.path.getmtime(os.path.join(self.filename)))
             else:
                 self.config_update_time = None
         except FileNotFoundError:
-            logging.critical(f"Config file {self.filename} cannot be found.")
+            logging.critical(f"Config file, {self.filename}, cannot be found.")
             raise FileNotFoundError
         
+        logging.info(f"Output file, {self.output_file}, timestamp={self.last_update_time}, and config file, {self.filename}=, timestamp={self.config_update_time}.")
         # if int(float(self.time_stamp.value)) == int(self.last_update_time):
         if self.config_update_time == self.last_update_time:
             color = "green"
@@ -741,6 +789,7 @@ class App(Component):
         status, color = self.get_match_status()
         if len(status) > 0:
             self.label_match_status = Label(self.status_frame, text=f"{status}", foreground=color)
+            CreateToolTip(self.label_match_status, f"The timestamp of configure's output file, {self.output_file}, does not much that of our {self.filename} file.  \nThis usually means that \n  1. 'configure' was run without this program, \n  2. this program has not been run yet, or \n  3. the json has been manually changed since the last time this program was run.")
             self.label_match_status.pack()
 
         self.button_frame = Frame(self.label_frame)
@@ -751,7 +800,7 @@ class App(Component):
 
 
         self.done_button = Button(self.button_frame, text="Execute command with options (will remember settings)", command=self.execute, underline=0)
-        CreateToolTip(self.done_button, "Execute command with options")
+        CreateToolTip(self.done_button, f"Execute command with options and save settings to {self.filename}.")
         self.done_button.pack(side="right", anchor="e", expand=True, fill="both", padx=5)
     
     def setIsInCurrentCommand(self, value):
@@ -1087,6 +1136,7 @@ class LandingPage(Component):
         if type(config_file) is str:
             with open(config_file, "r") as f:
                 app_json = json.load(f)
+            self.filename = config_file
         elif type(config_file) is dict:
             app_json = config_file
         else:
@@ -1131,17 +1181,24 @@ class LandingPage(Component):
         self.desc_label2 = Label(self.header, wraplength=500, text=self.desc)
         self.desc_label2.pack(pady=10)
         
+        self.labelScript = Label(self.body, text=f"Script filename: {os.path.basename(self.program)}")
+        self.labelScript.pack(anchor="w", padx=50, pady=0)
 
-        self.label = Label(self.body, text="Location:")
-        self.label.pack(anchor="w", padx=50)
+        self.label = Label(self.body, text="Script location:")
+        self.label.pack(anchor="w", padx=50, pady=0)
 
         self.folder_location = StringVar(value=initial_dir)
-        self.folder_entry = Entry(self.body, textvariable=self.folder_location)
-        self.folder_entry.pack(side="left", expand=True, fill="x", padx=50)
 
-        self.change_button = Button(self.body, text="Change", command=self.change_dir)
+        self.browse_frame = Frame(self.body)
+
+        self.folder_entry = Entry(self.browse_frame, textvariable=self.folder_location)
+        self.folder_entry.pack(side="left", expand=True, fill="x", pady=0)
+
+        self.change_button = Button(self.browse_frame, text="Browse", command=self.change_dir)
         CreateToolTip(self.change_button, "Click here to choose Trick's home directory.  Configure will run from within this directory.")
-        self.change_button.pack(side="left", pady=10, padx=10)
+        self.change_button.pack(side="left", padx=(10, 0))
+
+        self.browse_frame.pack(fill="x", expand=True, padx=50, anchor="n")
 
         self.configure_fast_button = Button(self.footer, text="Configure with defaults", command=self.configure)
         CreateToolTip(self.configure_fast_button, "Run configure with the default options.")
@@ -1169,17 +1226,16 @@ class LandingPage(Component):
             messagebox.showerror(title="Invalid directory", message=f"{self.folder_location.get()} is not a valid directory")
             return False
         arr = glob.glob(self.program)
-        which = shutil.which(self.program)
         if len(arr) > 0:
             self.program = os.path.abspath(arr[0])
             return True
         else:
+            which = shutil.which(self.program)  #Note: if self.program contains a path, which will always be false (e.g. the default ./configure will never be found in the path)
             if which:
                 self.program = which
                 return True
-            self.program = None
-            os.chdir(curdir)
-            messagebox.showerror(title="Wrong home directory", message=f"No configure file found in location: {self.folder_location.get()}.  Please enter your trick home directory.") #TODO: Don't hard code this message
+            os.chdir(currdir)
+            messagebox.showerror(title="Wrong home directory", message=f"No SCRIPT_FILE file found in location: {self.folder_location.get()} or in the PATH env variable. Please enter a valid location for this file (this is usually your TRICK_HOME directory).") #TODO: Don't hard code this message
             return False
 
     def configure(self):
@@ -1204,22 +1260,20 @@ def main(argv=[]):
     parser = argparse.ArgumentParser()
 
     default = "(default: %(default)s)"
-    parser.add_argument("-s", "--script-file", default="./configure", help=f"script to add args to {default}")
+    parser.add_argument("-s", "--script-file", default="./configure", help=f"script to add args to and to execute.{default}.  If the filename exists in the current folder, it will be run, otherwise, the path env variable will be used to find the filename.  Note: ./configure will never be found in the path because in includes a path.")
     parser.add_argument("-c", "--config", default=f"{os.path.dirname(os.path.realpath(__file__))}/trick_config.json", help=f"json file with gui options and settings {default}")
     parser.add_argument("-b", "--build", action="store_true", default=False, help=f"guess the parameter choices from the scripts help output.  Use '-c config.json' to use these parameters. {default}")
-    parser.add_argument('-v', '--verbose', action='count', default=0, help=f"Increase logging level.  {default}")
+    parser.add_argument('-l', '--logging', default="warning", choices=["critical", "error", "warning", "info", "debug", "notset"], help=f"Set logging level.  {default}")
     args = parser.parse_args(argv)
-
-    if args.verbose == 0:
-        log_level = 30 #This is the default logging level
-    else:
-        log_level = 60 - args.verbose*10
     
+    # log_level = logging.getLevelName(args.logging)
+    log_level = args.logging.upper()
     logging.basicConfig(
         format='%(asctime)s %(levelname)-8s %(message)s',
         level=log_level,
         datefmt='%Y-%m-%d %H:%M:%S')
-    logging.debug(f"Logging level is set to {log_level}")
+    logging.info(f"Logging level is set to {log_level}")
+
     
     resource_folder = f'{os.path.dirname(os.path.realpath(__file__))}/resources'
     
@@ -1230,24 +1284,28 @@ def main(argv=[]):
     
     config_file = args.config
     if not os.path.isfile(config_file):
+        logging.info(f"The config file did not exist.  Creating a default config file at: {config_file}")
         #Config file does not exist so we create one with the default configuration
         with open(config_file, "w") as f:
             json.dump(default_trick_config, f, indent=4)
-    if type(config_file) is str: 
-        config_file = os.path.abspath(config_file) #Landing page will change cwd so we get abs path
+    else:
+        logging.info(f"The config file, {config_file} exists.  If this file does not exist, a default would be created.")
+    config_file = os.path.abspath(config_file) #Landing page will change cwd so we get abs path
     if os.path.exists(args.script_file):
         script_folder = os.path.dirname(os.path.abspath(args.script_file))
     else:
         script_folder = os.getcwd()
-    l = LandingPage(parent=None, config_file=config_file, program=args.script_file, initial_dir=script_folder, resource_folder=resource_folder)
-    l.get_frame().mainloop()
+    landingPage = LandingPage(parent=None, config_file=config_file, program=args.script_file, initial_dir=script_folder, resource_folder=resource_folder)
+    landingPage.get_frame().mainloop()
     
-    if not l.to_close:
-        if l.open_advanced:
-            a = App(config_file, l.program, resource_folder=resource_folder)
+    if not landingPage.to_close:
+        if landingPage.open_advanced:
+            a = App(config_file, landingPage.program, resource_folder=resource_folder)
             a.get_frame().mainloop()
         else:
-            execute(None, Data(sections=Data()), l.program, autoRun=True, answer=True) #TODO: Test this.
+            # a = App(default_trick_config, landingPage.program, resource_folder=resource_folder, back_up_filename=config_file)
+            # a.execute(answer=True)
+            execute(None, Data(sections=Data()), landingPage.program, autoRun=True, answer=True) #TODO: Test this.
 
 if __name__ == "__main__":
     main(sys.argv[1:])

@@ -154,8 +154,8 @@ def test_run():
     dir_path = os.path.dirname(os.path.realpath(__file__))
     stdout = run('echo Hello World!')
     assert stdout == "Hello World!\n"
-    stdout = run("configure")
-    assert stdout == "/bin/sh: 1: configure: not found\n"
+    stdout = run("./bad_file")
+    assert stdout == "/bin/sh: 1: ./bad_file: not found\n"
     stdout = run(f"python3 {dir_path}/check_env.py", "hello")
     assert stdout == "Hello World!\n"
 

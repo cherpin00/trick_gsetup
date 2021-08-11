@@ -7,11 +7,21 @@ default_trick_config = {
     "sections": {
         "Configuration:": {
             "options": {
-                "help": {
-                    "desc": "display this help and exit",
-                    "type": "radio",
-                    "value": "no",
-                    "options" : {"short" : {"desc" : "display thee short help of all included packages."}, "long" : { "desc" : "dipslay the long version of the help."}}
+                # "help": {
+                #     "desc": "display this help and exit",
+                #     "type": "super",
+                #     "value": "no",
+                #     "options" : {
+                #         "help" : {"type" : "flag", "desc" : "Display the help and exit."}, 
+                #         "help" : {
+                #             "type" : "radio",
+                #             "options" : {"short" : {"desc" : "Display the short help."}}
+                #         }
+                #     },
+                # },
+                "help" : {
+                    "type" : "radio",
+                    "options" : {"recursive" : {"desc" : "Display the short help of all the included packages and exit."}, "short" : {"desc" : "Display the short help and exit."}, "empty" : {"desc" : "Display the help and exit.", "label" :"regular"}}
                 },
                 "version": {
                     "desc": "display version information and exit",

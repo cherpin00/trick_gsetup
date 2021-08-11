@@ -1,4 +1,4 @@
-Format for json config file
+## Format for json config file
 {
     ['name'] : 'Name of the application',
     ['landing'] : {
