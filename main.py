@@ -145,6 +145,7 @@ class Data:
 
 class Component:
     def __init__(self, parent, name, source:Data, special_valid_params, special_required_params) -> None:
+        self.source_attribute = "value"
         self.parent = parent
         self.frame = Frame(parent)
         self.name = name
@@ -167,6 +168,14 @@ class Component:
             setattr(self, key, "default")
             self.params.append(key)
     
+    @property
+    def value(self):
+        return getattr(self.source, self.source_attribute)
+    
+    @value.setter
+    def value(self, value):
+        setattr(self.source, self.source_attribute, value)
+
     def get_hidden(self):
         if "hidden" in dir(self):
             if type(self.hidden) is bool:
@@ -497,6 +506,8 @@ class App(Component):
         else:
             raise RuntimeError(f"Invalid parameter my_json_or_file: {my_json_or_filename}.")
 
+        self.trick_home = os.path.dirname(program)
+        self.output_file = "config_user.mk"
         self._program = program
         self.resource_folder = resource_folder
 
@@ -507,9 +518,12 @@ class App(Component):
 
         set_widget_geometry(self.root)
 
-        super().__init__(self.root, "app", self.data, special_required_params=["sections"], special_valid_params=["sections", "name", "landing"])
+        super().__init__(self.root, "app", self.data, special_required_params=["sections"], special_valid_params=["sections", "name", "landing", "time_stamp"])
         
         self.name = "app" if self.name == "default" else self.name
+        if self.time_stamp == "default":
+            self.time_stamp = Data(value=-2)#We use -2 here because -1 is used if the output file does not exist
+
 
         self.root.title(self.name)
         self.root.minsize(width=500, height=400)
@@ -656,6 +670,21 @@ class App(Component):
         self.checked_toggle.pack(side="right", anchor="e", expand=True, fill="x")
 
         #End Search box
+    
+    def get_match_status(self):
+        try:
+            self.last_update_time = os.path.getmtime(os.path.join(self.trick_home, "share", "trick", "makefiles", self.output_file))
+        except FileNotFoundError:
+            self.last_update_time = -1
+        
+        if int(float(self.time_stamp.value)) == int(self.last_update_time):
+            color = "green"
+            status = ""
+        else:
+            color = "yellow4"
+            status = "Warning: Trick's current configuration may be different from the configuration shown here."
+        return status, color
+
 
     def build_current_script(self, parent):
         #Current Script
@@ -682,6 +711,11 @@ class App(Component):
         status, color = self.get_status()
         self.label_status = Label(self.status_frame, text=f"Status: {status}", foreground=color)
         self.label_status.pack()
+
+        status, color = self.get_match_status()
+        if len(status) > 0:
+            self.label_match_status = Label(self.status_frame, text=f"{status}", foreground=color)
+            self.label_match_status.pack()
 
         self.button_frame = Frame(self.label_frame)
         self.button_frame.pack()
@@ -830,6 +864,8 @@ class App(Component):
             self.set_status()
 
     def save(self, filename=None):
+        date = int(time.mktime(datetime.datetime.now().timetuple()))
+        self.time_stamp.value = date
         if filename == None:
             if self.filename == None:
                 raise RuntimeError(f"No file to save configuration to.")
