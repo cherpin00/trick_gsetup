@@ -321,8 +321,15 @@ class OptionBool(Option):
     
     def get_option(self):
         value = string_to_bool(str(self.value))
+        return f"--{self.name}" + f"={QuoteForPOSIX(bool_to_string(value))}"
+
+class OptionFlag(OptionBool):
+    def __init__(self, parent, section, name, data) -> None:
+        super().__init__(parent, section, name, data)
+    def get_option(self):
+        value = string_to_bool(str(self.value))
         if value:
-            return f"--{self.name}" + ("" if self.type == "flag" else f"={QuoteForPOSIX(bool_to_string(value))}")
+            return f"--{self.name}"
         else:
             return ""
 
@@ -395,8 +402,10 @@ class Section(Component):
             my_type = obj.type
             if my_type == "dir":
                 self.components[option] = OptionDir(self.get_scrollable(), section, option, data)
-            elif my_type == "bool" or my_type == "flag":
+            elif my_type == "bool":
                 self.components[option] = OptionBool(self.get_scrollable(), section, option, data)
+            elif my_type == "flag":
+                self.components[option] = OptionFlag(self.get_scrollable(), section, option, data)
             elif my_type == "envvar":
                 self.components[option] = OptionEnvVar(self.get_scrollable(), section, option, data)
             elif my_type == "radio":
