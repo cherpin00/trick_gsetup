@@ -1,12 +1,9 @@
 #!/usr/bin/python3
-# import PIL
 from posixpath import basename, curdir
 import tkinter
-# import ttkthemes
 
 import tkinter as tk
 from tkinter import PhotoImage, StringVar, Tk, ttk
-#from ttkthemes import ThemedTk
 from tkinter import BooleanVar, Toplevel, Text, Menu, Canvas
 from tkinter.constants import ANCHOR, NONE, SUNKEN
 from tkinter.ttk import Frame, Button, Entry, Label, Checkbutton, LabelFrame, Radiobutton, Scrollbar
@@ -535,9 +532,6 @@ class App(Component):
         self.resource_folder = resource_folder
 
         self.root = tkinter.Tk()
-        # self.root = ThemedTk() #TODO: Figure out how to run this without pip install.
-        # self.root.get_themes()
-        # self.root.set_theme("plastik")
 
         set_widget_geometry(self.root)
 
@@ -949,8 +943,7 @@ class Output():
         self.root.destroy()
         if self.on_done:
             self.on_done()
-
-
+    
 class LandingPage(Component):
     def __init__(self, parent=None, config_file="./config.json", program="configure", initial_dir=os.getcwd(), resource_folder = f'{os.path.dirname(os.path.realpath(__file__))}/resources') -> None:
         if parent:
