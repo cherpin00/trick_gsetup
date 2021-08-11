@@ -27,6 +27,7 @@ import errno
 import ntpath
 import glob
 import sys
+import datetime
 
 
 sys.path.append(os.path.dirname(os.path.realpath(__file__)))
@@ -534,8 +535,10 @@ class App(Component):
         super().__init__(self.root, "app", self.data, special_required_params=["sections"], special_valid_params=["sections", "name", "landing", "time_stamp"])
         
         self.name = "app" if self.name == "default" else self.name
+        # self.time_stamp = -2 if self.time_stamp == "default" else self.time_stamp
         if self.time_stamp == "default":
             self.time_stamp = Data(value=-2)#We use -2 here because -1 is used if the output file does not exist
+            # setattr(self.source, "time_stamp", self.time_stamp)
 
 
         self.root.title(self.name)
@@ -686,11 +689,21 @@ class App(Component):
     
     def get_match_status(self):
         try:
-            self.last_update_time = os.path.getmtime(os.path.join(self.trick_home, "share", "trick", "makefiles", self.output_file))
+            self.last_update_time = int(os.path.getmtime(os.path.join(self.trick_home, "share", "trick", "makefiles", self.output_file)))
         except FileNotFoundError:
             self.last_update_time = -1
         
-        if int(float(self.time_stamp.value)) == int(self.last_update_time):
+        try:
+            if self.filename != None:
+                self.config_update_time = int(os.path.getmtime(os.path.join(self.filename)))
+            else:
+                self.config_update_time = None
+        except FileNotFoundError:
+            logging.critical(f"Config file {self.filename} cannot be found.")
+            raise FileNotFoundError
+        
+        # if int(float(self.time_stamp.value)) == int(self.last_update_time):
+        if self.config_update_time == self.last_update_time:
             color = "green"
             status = ""
         else:
