@@ -872,8 +872,8 @@ class App(Component):
             answer = messagebox.askyesno(title="Confirmation", message=f"Would you like to configure trick with your chosen options?")
         
         if answer:
-            self.save()
             output = Output(self.program, self.sections, on_done=self.root.destroy)
+            self.save()
             output.get_frame().mainloop()
         else:
             self.set_status()
@@ -1125,10 +1125,7 @@ def main(argv=[]):
             a = App(config_file, landingPage.program, resource_folder=resource_folder)
             a.get_frame().mainloop()
         else:
-            a = App(default_trick_config, landingPage.program, resource_folder=resource_folder, back_up_filename=config_file)
-            a.root.destroy()
-            a.save()
-            output = Output(landingPage.program, a.sections)
+            output = Output(landingPage.program, {})
             output.get_frame().mainloop()
 
 if __name__ == "__main__":

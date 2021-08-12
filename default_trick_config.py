@@ -7,18 +7,6 @@ default_trick_config = {
     "sections": {
         "Configuration:": {
             "options": {
-                # "help": {
-                #     "desc": "display this help and exit",
-                #     "type": "super",
-                #     "value": "no",
-                #     "options" : {
-                #         "help" : {"type" : "flag", "desc" : "Display the help and exit."}, 
-                #         "help" : {
-                #             "type" : "radio",
-                #             "options" : {"short" : {"desc" : "Display the short help."}}
-                #         }
-                #     },
-                # },
                 "help" : {
                     "type" : "radio",
                     "options" : {"recursive" : {"desc" : "Display the short help of all the included packages and exit."}, "short" : {"desc" : "Display the short help and exit."}, "empty" : {"desc" : "Display the help and exit.", "label" :"regular"}}
@@ -238,7 +226,7 @@ default_trick_config = {
                 "disable-civet": {
                     "desc": "Compile Trick without webserver capabilities.",
                     "type": "flag",
-                    "label" : "disable mongoose"
+                    "label" : "disable civet"
                 },
                 "disable-java": {
                     "desc": "disable the use java",
@@ -300,13 +288,13 @@ default_trick_config = {
                 "with-udunits": {
                     "desc": "",
                     "type": "dir",
-                    "label": ""
+                    "label": "enable udunits"
                 },
                 "without-zlib": {
                     "desc": "check to disable zlib usage completely",
                     "type": "flag",
                     "value": "no",
-                    "label": "diable zlib"
+                    "label": "disable zlib"
                 },
                 "with-zlib": {
                     "desc": "root directory path of zlib installation [defaults to /usr/local or /usr if not found in /usr/local]",
@@ -321,7 +309,6 @@ default_trick_config = {
                 "with-prepend-path": {
                     "desc": "prepend this directory to path",
                     "type": "dir",
-                    "value": "no",
                     "label": "dir to prepend"
                 }
             }
